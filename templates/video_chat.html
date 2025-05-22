@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-R">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudKeeper Video Chat</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        /* Additional specific styles for video chat if needed, beyond style.css */
+        #video-chat-main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #2c3e50; /* Darker theme for video chat area */
+            min-height: 100vh;
+            color: #ecf0f1;
+        }
+        #video-controls {
+            background-color: rgba(0,0,0,0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        #video-controls input[type="text"],
+        #video-controls button {
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: none;
+            font-size: 1em;
+        }
+        #video-controls input[type="text"] {
+            background-color: #34495e;
+            color: #ecf0f1;
+            border: 1px solid #7f8c8d;
+        }
+        #video-controls input::placeholder { color: #bdc3c7; }
+        #video-controls button {
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #video-controls button:hover { background-color: #2980b9; }
+        #video-controls button:disabled { background-color: #566573; cursor: not-allowed;}
+
+        #room-info-display {
+            background-color: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        #videos-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        .video-wrapper {
+            background-color: #1c2833;
+            border: 2px solid #34495e;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        video {
+            width: 360px;
+            height: 270px;
+            background-color: black;
+            border-radius: 5px;
+        }
+        .video-wrapper p {
+            color: #ecf0f1;
+            margin-top: 8px;
+            font-size: 0.9em;
+        }
+        #subtitles-output, #remote-subtitles-area {
+            width: 80%;
+            max-width: 700px;
+            background-color: rgba(0,0,0,0.4);
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 15px;
+            min-height: 40px;
+            border: 1px solid #34495e;
+        }
+        #messages-log {
+            width: 80%;
+            max-width: 700px;
+            margin-top: 20px;
+            font-style: italic;
+            color: #bdc3c7;
+            background-color: rgba(0,0,0,0.2);
+            padding:10px;
+            border-radius: 5px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+         #messages-log p { margin: 2px 0; font-size: 0.85em;}
+    </style>
+</head>
+<body>
+    <div id="video-chat-main">
+        <h1>CloudKeeper Video Chat</h1>
+        {% if session.username %}
+            <p style="margin-bottom: 20px;">Logged in as: {{ session.username }} | <a href="{{ url_for('logout') }}" style="color: #3498db;">Logout</a></p>
+        {% else %}
+             <p style="margin-bottom: 20px;">Joining as Guest | <a href="{{ url_for('welcome') }}" style="color: #3498db;">Sign in/Sign up</a></p>
+        {% endif %}
+
+        <div id="video-controls">
+            <button id="create-room-btn">Create & Join New Room</button>
+            <span style="margin: 0 5px;">OR</span>
+            <input type="text" id="room-id-input" placeholder="Enter Room ID to Join">
+            <button id="join-room-btn">Join Existing Room</button>
+            <button id="leave-room-btn" style="display:none;">Leave Room</button>
+            <!-- CC button will be added here by JS -->
+        </div>
+
+        <div id="room-info-display" style="display:none;">
+            <p>You are in room: <strong id="display-room-id"></strong></p>
+            <p style="font-size:0.8em;">Share this Room ID with others to join.</p>
+        </div>
+        <!-- Subtitles display will be added here by JS -->
+        <div id="videos-container">
+            <div class="video-wrapper" id="local-video-wrapper">
+                <video id="local-video" autoplay muted playsinline></video>
+                <p>You (Local)</p>
+            </div>
+        </div>
+        <!-- Remote subtitles display will be added here by JS -->
+        <div id="messages-log"></div>
+    </div>
+
+<!-- In video_chat.html, before main.js script tag -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+        const videoSocket = io(window.location.origin + '/video');
+    </script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

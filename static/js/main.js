@@ -1,79 +1,96 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const socket = io(window.location.origin); // Connect to Socket.IO server
+    // This assumes videoSocket is defined globally in video_chat.html before this script runs
+    // e.g., <script> const videoSocket = io(window.location.origin + '/video'); </script>
+    // If not, define it here:
+    // const socket = io(window.location.origin + '/video');
+    const socket = typeof videoSocket !== 'undefined' ? videoSocket : io(window.location.origin + '/video');
+
 
     const localVideo = document.getElementById('local-video');
     const videosContainer = document.getElementById('videos-container');
-
     const createRoomBtn = document.getElementById('create-room-btn');
     const roomIdInput = document.getElementById('room-id-input');
     const joinRoomBtn = document.getElementById('join-room-btn');
     const leaveRoomBtn = document.getElementById('leave-room-btn');
-
-    const roomInfoDiv = document.getElementById('room-info');
+    const roomInfoDiv = document.getElementById('room-info-display'); // Corrected ID from your HTML
     const displayRoomId = document.getElementById('display-room-id');
-    const messagesDiv = document.getElementById('messages');
+    const messagesLog = document.getElementById('messages-log'); // Corrected ID
 
     let localStream;
     let currentRoomId = null;
     let mySid = null;
-
     const peerConnections = {};
 
-    // --- Subtitles / CC ---
     let speechRecognition;
     let isRecognizing = false;
     let ccButton;
-    let subtitlesDisplay;
+    let subtitlesDisplay; // For local subtitles
     let speechRecognitionRetries = 0;
-    const MAX_SPEECH_RETRIES = 2; // Max attempts to restart on network error
+    const MAX_SPEECH_RETRIES = 2;
 
     const iceConfiguration = {
-        iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-        ]
+        iceServers: [ { urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' } ]
     };
 
     function logMessage(message) {
         console.log(message);
-        const p = document.createElement('p');
-        p.textContent = message;
-        messagesDiv.appendChild(p);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        if (messagesLog) { // Check if messagesLog element exists
+            const p = document.createElement('p');
+            p.textContent = message;
+            messagesLog.appendChild(p);
+            messagesLog.scrollTop = messagesLog.scrollHeight;
+        } else {
+            console.warn("messagesLog element not found. Cannot log to UI:", message);
+        }
     }
 
     function generateRoomId() {
         return Math.random().toString(36).substring(2, 8).toUpperCase();
     }
 
-    // ***** REVISED setupSubtitles FUNCTION *****
     function setupSubtitles() {
+        if (document.getElementById('cc-toggle-btn')) return; // Already set up
+
         ccButton = document.createElement('button');
-        subtitlesDisplay = document.createElement('div');
+        subtitlesDisplay = document.createElement('div'); // For local spoken words
 
         ccButton.id = 'cc-toggle-btn';
         ccButton.textContent = 'CC (Off)';
-        ccButton.style.marginLeft = '10px';
-        ccButton.disabled = true; // Initially disabled
-        const controlsDiv = document.getElementById('controls');
+        ccButton.disabled = true; // Will be enabled later
+        const controlsDiv = document.getElementById('video-controls'); // Corrected ID from your HTML
         if (controlsDiv) {
-            controlsDiv.appendChild(ccButton);
+            // Insert CC button before the leave button, or at the end if leave doesn't exist
+            const leaveBtnRef = document.getElementById('leave-room-btn');
+            if (leaveBtnRef) {
+                controlsDiv.insertBefore(ccButton, leaveBtnRef);
+            } else {
+                controlsDiv.appendChild(ccButton);
+            }
         } else {
-            console.error("Error: 'controls' div not found for CC button.");
-            return;
+            console.error("Error: 'video-controls' div not found for CC button.");
+            return; // Cannot proceed without controls div
         }
 
-        subtitlesDisplay.id = 'subtitles-output';
-        subtitlesDisplay.style.marginTop = '10px';
-        subtitlesDisplay.style.padding = '5px';
-        subtitlesDisplay.style.border = '1px solid #ccc';
-        subtitlesDisplay.style.minHeight = '30px';
-        subtitlesDisplay.style.backgroundColor = '#f9f9f9';
-        // Ensure controlsDiv exists before inserting after it
-        if (controlsDiv && controlsDiv.parentNode) {
-             controlsDiv.parentNode.insertBefore(subtitlesDisplay, videosContainer); // Place before videos for visibility
+        // Local subtitles display
+        subtitlesDisplay.id = 'subtitles-output'; // Used by onresult
+        // Style it similarly to remote-subtitles-area or messages-log
+        subtitlesDisplay.style.width = '80%';
+        subtitlesDisplay.style.maxWidth = '700px';
+        subtitlesDisplay.style.backgroundColor = 'rgba(0,0,0,0.4)';
+        subtitlesDisplay.style.color = '#ecf0f1';
+        subtitlesDisplay.style.padding = '10px';
+        subtitlesDisplay.style.borderRadius = '5px';
+        subtitlesDisplay.style.marginTop = '15px';
+        subtitlesDisplay.style.minHeight = '40px';
+        subtitlesDisplay.style.border = '1px solid #34495e';
+        // Insert local subtitles display area after room-info, before videos
+        const roomInfoDisplayEl = document.getElementById('room-info-display');
+        if (roomInfoDisplayEl && roomInfoDisplayEl.parentNode) {
+            roomInfoDisplayEl.parentNode.insertBefore(subtitlesDisplay, videosContainer);
+        } else if (controlsDiv && controlsDiv.parentNode) { // Fallback: after controls
+             controlsDiv.parentNode.insertBefore(subtitlesDisplay, videosContainer);
         } else {
-            document.body.appendChild(subtitlesDisplay); // Fallback
+            document.body.appendChild(subtitlesDisplay); // Absolute fallback
         }
 
 
@@ -94,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
             isRecognizing = true;
             if(ccButton) ccButton.textContent = 'CC (On)';
             logMessage('Speech recognition started.');
-            speechRecognitionRetries = 0; // Reset retries on successful start
+            speechRecognitionRetries = 0;
         };
 
         speechRecognition.onerror = (event) => {
@@ -103,120 +120,91 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (event.error === 'network') {
                 errorMessage += ". Please check your internet connection and firewall settings. The subtitle service might be temporarily unavailable.";
-                // Only retry if user intends for CC to be on and is in a room
+                if (navigator.brave && typeof navigator.brave.isBrave === 'function') {
+                    errorMessage += " If using Brave, check Shields settings for this site.";
+                }
                 if (speechRecognitionRetries < MAX_SPEECH_RETRIES && currentRoomId && ccButton && ccButton.textContent === 'CC (On)') {
                     willRetry = true;
                     speechRecognitionRetries++;
                     logMessage(`Attempting to restart speech recognition (attempt ${speechRecognitionRetries}/${MAX_SPEECH_RETRIES})...`);
-                    
-                    isRecognizing = true; // Maintain state as "trying to be on"
+                    isRecognizing = true; 
                     if(ccButton) ccButton.textContent = 'CC (On)';
-
                     setTimeout(() => {
-                        // Check again if CC is still desired before actually retrying
                         if (currentRoomId && ccButton && ccButton.textContent === 'CC (On)') {
-                            try {
-                                speechRecognition.start(); // onstart will confirm state
-                            } catch(e) {
+                            try { speechRecognition.start(); }
+                            catch(e) {
                                 console.error("Error restarting speech recognition:", e);
                                 logMessage("Could not restart CC after retry attempt.");
-                                isRecognizing = false; // Failed retry, so now definitely off
-                                if(ccButton) ccButton.textContent = 'CC (Off)';
+                                isRecognizing = false; if(ccButton) ccButton.textContent = 'CC (Off)';
                             }
                         } else {
                             logMessage("Speech recognition retry cancelled (user action, room left, or state changed).");
-                            if (isRecognizing) isRecognizing = false; // Ensure state is off
+                            if (isRecognizing) isRecognizing = false;
                             if (ccButton && ccButton.textContent === 'CC (On)') ccButton.textContent = 'CC (Off)';
                         }
-                    }, 3000 * speechRecognitionRetries); // Exponential backoff, 3s, 6s
+                    }, 3000 * speechRecognitionRetries);
                 } else if (speechRecognitionRetries >= MAX_SPEECH_RETRIES) {
-                    logMessage("Max retries for speech recognition reached. Please try toggling CC manually or check your network.");
+                    logMessage("Max retries for speech recognition reached for network error.");
                 }
-                // If not retrying for network error (e.g. max retries, or user turned off CC), willRetry remains false.
             } else if (event.error === 'no-speech') {
-                errorMessage += ". No speech was detected. Try speaking louder or closer to the microphone.";
+                errorMessage += ". No speech detected. Try speaking louder.";
             } else if (event.error === 'audio-capture') {
-                errorMessage += ". Microphone problem. Ensure it's working and permissions are granted.";
+                errorMessage += ". Microphone problem.";
             } else if (event.error === 'not-allowed') {
-                errorMessage += ". Permission to use the microphone for subtitles was denied or has not been granted. Please check browser permissions.";
+                errorMessage += ". Microphone permission denied for subtitles.";
+                if (typeof InstallTrigger !== 'undefined') {
+                    errorMessage += " In Firefox, ensure microphone permissions are always allowed and check about:config for media.webspeech.recognition.enable if issues persist.";
+                }
             } else if (event.error === 'aborted') {
-                errorMessage += ". Speech recognition was aborted, possibly due to a quick stop/start or microphone issue.";
+                errorMessage += ". Recognition aborted.";
             }
-            // This initial log message is always shown for any error
             logMessage(errorMessage);
             console.error('Speech recognition error object:', event);
-
-            // If a retry is NOT being attempted for this error, then the session is truly over.
-            // Set state to 'off'.
             if (!willRetry) {
-                isRecognizing = false;
-                if(ccButton) ccButton.textContent = 'CC (Off)';
+                isRecognizing = false; if(ccButton) ccButton.textContent = 'CC (Off)';
             }
-            // If willRetry is true, isRecognizing and button text are deliberately kept 'On' by the logic above,
-            // awaiting the outcome of the setTimeout.
         };
 
         speechRecognition.onend = () => {
-            // If isRecognizing is true here, it means onerror decided to retry and kept the state 'On'.
-            // The onend for the failed session should not change this state.
-            // The retry logic (or manual stop) will handle the final state.
             if (isRecognizing && ccButton && ccButton.textContent === 'CC (On)') {
-                logMessage('Speech recognition segment processing concluded (retry may be pending/active).');
+                logMessage('Speech recognition segment processing concluded (retry may be pending or browser ended session).');
             } else {
-                // This means isRecognizing was already false (e.g., manual stop, or an error that didn't trigger a retry)
                 logMessage('Speech recognition session processing ended.');
             }
         };
 
         speechRecognition.onresult = (event) => {
-            let interimTranscript = '';
-            let finalTranscript = '';
+            let interimTranscript = ''; let finalTranscript = '';
             for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
-                } else {
-                    interimTranscript += event.results[i][0].transcript;
-                }
+                if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+                else interimTranscript += event.results[i][0].transcript;
             }
-            // Display your own spoken words locally
-            subtitlesDisplay.textContent = finalTranscript + interimTranscript;
-
-            // If you want to send final transcripts to others:
+            if(subtitlesDisplay) subtitlesDisplay.textContent = finalTranscript + interimTranscript; // Update local display
             if (finalTranscript.trim() && currentRoomId && mySid) {
-                socket.emit('subtitle-text', {
-                    text: finalTranscript,
-                    sender_sid: mySid,
-                    room: currentRoomId
-                });
+                socket.emit('subtitle-text', { text: finalTranscript, sender_sid: mySid, room: currentRoomId });
             }
         };
 
         ccButton.addEventListener('click', () => {
             if (isRecognizing) {
-                speechRecognition.stop(); // This will trigger onend.
-                isRecognizing = false;    // Set state immediately.
-                ccButton.textContent = 'CC (Off)';
-                speechRecognitionRetries = 0; // Reset retries on manual stop.
-                logMessage("Speech recognition manually stopped.");
+                speechRecognition.stop(); isRecognizing = false; ccButton.textContent = 'CC (Off)';
+                speechRecognitionRetries = 0; logMessage("Speech recognition manually stopped.");
             } else {
                 if (localStream && localStream.getAudioTracks().length > 0) {
                     try {
-                        speechRecognitionRetries = 0; // Reset before a new manual start.
-                        speechRecognition.start();    // onstart will set isRecognizing and button text.
-                        // isRecognizing and ccButton.textContent set in onstart
+                        speechRecognitionRetries = 0; speechRecognition.start();
                     } catch (e) {
                         logMessage("Could not start speech recognition: " + e.message);
-                        isRecognizing = false;        // Ensure state is off on failure.
-                        ccButton.textContent = 'CC (Off)';
+                        isRecognizing = false; ccButton.textContent = 'CC (Off)';
                     }
                 } else {
-                    alert('Cannot start CC: No local audio stream available or permissions denied.');
+                    alert('Cannot start CC: No local audio stream or permissions denied.');
                 }
             }
         });
-        // Button will be enabled when user joins a room and stream is active
+        // Button enabled state is managed by updateUIAfterJoin and when stream starts
+        ccButton.disabled = true;
     }
-    // ***** END OF REVISED setupSubtitles FUNCTION *****
 
 
     async function startLocalStream() {
@@ -224,21 +212,26 @@ document.addEventListener('DOMContentLoaded', () => {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localVideo.srcObject = localStream;
             logMessage('Local stream started.');
-            createRoomBtn.disabled = false;
-            joinRoomBtn.disabled = false;
-            if (!document.getElementById('cc-toggle-btn')) { // Check if button exists
-                setupSubtitles(); // Call if CC button hasn't been set up yet
+            if (createRoomBtn) createRoomBtn.disabled = false;
+            if (joinRoomBtn) joinRoomBtn.disabled = false;
+
+            // Setup CC button if not already present
+            if (!document.getElementById('cc-toggle-btn')) {
+                setupSubtitles();
             }
-            // Enable CC button only if API is supported AND user is in a room
+            // Enable CC button only if API is supported AND user is in a room (or about to join)
+            // If currentRoomId is null, it means user hasn't joined a room yet.
+            // The button will be fully enabled in updateUIAfterJoin or joined-room.
             if (ccButton && !ccButton.textContent.includes('Unsupported')) {
-                 ccButton.disabled = !currentRoomId;
+                 ccButton.disabled = !currentRoomId; // Only enable if already in a room and stream is up
             }
+
         } catch (error) {
             console.error('Error accessing media devices.', error);
             logMessage('Error accessing media devices: ' + error.message);
             alert('Could not access camera and microphone. Please check permissions.');
-            createRoomBtn.disabled = true;
-            joinRoomBtn.disabled = true;
+            if(createRoomBtn) createRoomBtn.disabled = true;
+            if(joinRoomBtn) joinRoomBtn.disabled = true;
             if(ccButton) ccButton.disabled = true;
         }
     }
@@ -250,44 +243,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!localStream) {
             logMessage('Local stream not ready. Attempting to start...');
-            await startLocalStream();
+            await startLocalStream(); // This will also attempt to setup/enable CC button
             if (!localStream) return;
         }
-
         currentRoomId = roomId;
         socket.emit('join', { room: currentRoomId });
         logMessage(`Attempting to join room: ${currentRoomId}`);
-        updateUIAfterJoin(currentRoomId);
+        // updateUIAfterJoin will be called via 'joined-room' or implicitly by UI changes
     }
 
-    createRoomBtn.addEventListener('click', async () => {
-        const newRoomId = generateRoomId();
-        roomIdInput.value = newRoomId;
-        await performJoinRoom(newRoomId);
-    });
+    if(createRoomBtn) {
+        createRoomBtn.addEventListener('click', async () => {
+            const newRoomId = generateRoomId();
+            if(roomIdInput) roomIdInput.value = newRoomId;
+            await performJoinRoom(newRoomId);
+        });
+    }
 
-    joinRoomBtn.addEventListener('click', async () => {
-        const roomIdToJoin = roomIdInput.value.trim();
-        if (!roomIdToJoin) {
-            alert('Please enter a Room ID to join.');
-            return;
-        }
-        await performJoinRoom(roomIdToJoin);
-    });
+    if(joinRoomBtn) {
+        joinRoomBtn.addEventListener('click', async () => {
+            const roomIdToJoin = roomIdInput ? roomIdInput.value.trim() : '';
+            if (!roomIdToJoin) {
+                alert('Please enter a Room ID to join.');
+                return;
+            }
+            await performJoinRoom(roomIdToJoin);
+        });
+    }
 
-    leaveRoomBtn.addEventListener('click', () => {
-        if (currentRoomId) {
-            socket.disconnect();
-        }
-    });
+    if(leaveRoomBtn) {
+        leaveRoomBtn.addEventListener('click', () => {
+            if (currentRoomId) {
+                socket.disconnect(); // Server handles room cleanup on disconnect
+            }
+        });
+    }
+
 
     function updateUIAfterJoin(roomId) {
-        displayRoomId.textContent = roomId;
-        roomInfoDiv.style.display = 'block';
-        createRoomBtn.style.display = 'none';
-        joinRoomBtn.style.display = 'none';
-        roomIdInput.style.display = 'none';
-        leaveRoomBtn.style.display = 'inline-block';
+        if(displayRoomId) displayRoomId.textContent = roomId;
+        if(roomInfoDiv) roomInfoDiv.style.display = 'block';
+        if(createRoomBtn) createRoomBtn.style.display = 'none';
+        if(joinRoomBtn) joinRoomBtn.style.display = 'none';
+        if(roomIdInput) roomIdInput.style.display = 'none';
+        if(leaveRoomBtn) leaveRoomBtn.style.display = 'inline-block';
+
         if(ccButton && !ccButton.textContent.includes('Unsupported')) {
             ccButton.disabled = !(localStream && localStream.getAudioTracks().length > 0);
         }
@@ -295,6 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function resetUIAndState() {
         currentRoomId = null;
+        // mySid will be updated by socket.io on connect
 
         for (const sid in peerConnections) {
             if (peerConnections[sid]) peerConnections[sid].close();
@@ -306,39 +307,37 @@ document.addEventListener('DOMContentLoaded', () => {
         if (localStream) {
             localStream.getTracks().forEach(track => track.stop());
             localStream = null;
-            localVideo.srcObject = null;
+            if(localVideo) localVideo.srcObject = null;
         }
 
         if (speechRecognition && isRecognizing) {
             speechRecognition.stop();
         }
-        isRecognizing = false;
-        speechRecognitionRetries = 0;
+        isRecognizing = false; speechRecognitionRetries = 0;
         if (ccButton) {
-             ccButton.textContent = 'CC (Off)';
-             ccButton.disabled = true;
+             ccButton.textContent = 'CC (Off)'; ccButton.disabled = true;
         }
 
-        roomInfoDiv.style.display = 'none';
-        displayRoomId.textContent = '';
-        createRoomBtn.style.display = 'inline-block';
-        joinRoomBtn.style.display = 'inline-block';
-        roomIdInput.style.display = 'inline-block';
-        roomIdInput.value = '';
-        leaveRoomBtn.style.display = 'none';
+        if(roomInfoDiv) roomInfoDiv.style.display = 'none';
+        if(displayRoomId) displayRoomId.textContent = '';
+        if(createRoomBtn) createRoomBtn.style.display = 'inline-block';
+        if(joinRoomBtn) joinRoomBtn.style.display = 'inline-block';
+        if(roomIdInput) roomIdInput.style.display = 'inline-block';
+        if(roomIdInput) roomIdInput.value = '';
+        if(leaveRoomBtn) leaveRoomBtn.style.display = 'none';
 
-        messagesDiv.innerHTML = '';
+        if(messagesLog) messagesLog.innerHTML = '';
         if(subtitlesDisplay) subtitlesDisplay.textContent = '';
         const remoteSubtitlesDiv = document.getElementById('remote-subtitles-area');
         if (remoteSubtitlesDiv) remoteSubtitlesDiv.innerHTML = '';
 
-        createRoomBtn.disabled = true;
-        joinRoomBtn.disabled = true;
+        if(createRoomBtn) createRoomBtn.disabled = true; // Disabled until stream is ready
+        if(joinRoomBtn) joinRoomBtn.disabled = true; // Disabled until stream is ready
 
         if (!socket.connected) {
-            socket.connect();
+            socket.connect(); // Attempt to reconnect
         } else {
-             startLocalStream();
+             startLocalStream(); // If still connected, just re-init local parts
         }
     }
 
@@ -346,19 +345,24 @@ document.addEventListener('DOMContentLoaded', () => {
         mySid = socket.id;
         console.log('Connected to server with SID:', mySid);
         logMessage('Connected to signaling server.');
-        createRoomBtn.disabled = true;
-        joinRoomBtn.disabled = true;
-        if (!document.getElementById('cc-toggle-btn')) { // Check if button exists
+        if(createRoomBtn) createRoomBtn.disabled = true;
+        if(joinRoomBtn) joinRoomBtn.disabled = true;
+
+        // Ensure setupSubtitles is called if the button isn't there yet.
+        // This is important if the page was reloaded or user navigated back.
+        if (!document.getElementById('cc-toggle-btn') && document.getElementById('video-controls')) {
             setupSubtitles();
         }
+
         if (ccButton && !ccButton.textContent.includes('Unsupported')) {
-             ccButton.disabled = true; // Keep disabled until in a room
+             ccButton.disabled = true; // Will be enabled once in a room and stream is active
         }
-        startLocalStream();
+        startLocalStream(); // This will try to get media and then enable buttons
     });
 
     socket.on('disconnect', () => {
         logMessage('Disconnected from signaling server.');
+        // Reset UI if was in an active call state
         if (currentRoomId || Object.keys(peerConnections).length > 0 || localStream) {
             resetUIAndState();
         }
@@ -366,16 +370,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('joined-room', (data) => {
         logMessage(`Successfully joined room: ${data.room_id}. Your SID: ${data.sid}`);
-        mySid = data.sid;
-        if(ccButton && !ccButton.textContent.includes('Unsupported')) {
-            ccButton.disabled = !(localStream && localStream.getAudioTracks().length > 0);
-        }
+        mySid = data.sid; // Update our own SID from server confirmation
+        currentRoomId = data.room_id; // Ensure currentRoomId is set
+        updateUIAfterJoin(data.room_id); // Update UI based on successful join
     });
 
     socket.on('other-users', (data) => {
         logMessage(`Other users in room: ${data.users.join(', ')}`);
         data.users.forEach(sid => {
-            if (sid !== mySid) createPeerConnection(sid, true);
+            if (sid !== mySid) createPeerConnection(sid, true); // I am initiator to existing users
         });
     });
 
@@ -383,14 +386,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const remoteSid = data.sid;
         if (remoteSid === mySid) return;
         logMessage(`User ${remoteSid} joined the room.`);
+        // New user will see me in their 'other-users' and initiate connection.
+        // No action needed from my side here unless I want to force initiation.
     });
 
     socket.on('user-left', (data) => {
         const remoteSid = data.sid;
         logMessage(`User ${remoteSid} left the room.`);
         if (peerConnections[remoteSid]) {
-            peerConnections[remoteSid].close();
-            delete peerConnections[remoteSid];
+            peerConnections[remoteSid].close(); delete peerConnections[remoteSid];
         }
         const remoteVideoWrapper = document.getElementById(`video-wrapper-${remoteSid}`);
         if (remoteVideoWrapper) remoteVideoWrapper.remove();
@@ -402,7 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let pc = peerConnections[sender_sid];
 
         if (type === 'offer') {
-            if (!pc) pc = createPeerConnection(sender_sid, false);
+            if (!pc) pc = createPeerConnection(sender_sid, false); // Not initiator
             try {
                 await pc.setRemoteDescription(new RTCSessionDescription(payload));
                 const answer = await pc.createAnswer();
@@ -412,10 +416,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) { console.error(`Error handling offer from ${sender_sid}:`, error); }
         } else if (type === 'answer') {
             if (pc) {
-                try {
-                    await pc.setRemoteDescription(new RTCSessionDescription(payload));
-                    logMessage(`Processed answer from ${sender_sid}`);
-                } catch (error) { console.error(`Error handling answer from ${sender_sid}:`, error); }
+                try { await pc.setRemoteDescription(new RTCSessionDescription(payload)); logMessage(`Processed answer from ${sender_sid}`); }
+                catch (error) { console.error(`Error handling answer from ${sender_sid}:`, error); }
             }
         } else if (type === 'candidate') {
             if (pc) {
@@ -424,14 +426,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         await pc.addIceCandidate(new RTCIceCandidate(payload));
                     } else {
                         if (!pc.pendingCandidates) pc.pendingCandidates = [];
-                        pc.pendingCandidates.push(payload);
-                        logMessage(`Buffered ICE candidate from ${sender_sid}`);
+                        pc.pendingCandidates.push(payload); logMessage(`Buffered ICE candidate from ${sender_sid}`);
                     }
                 } catch (error) {
                     if (!(error.name === 'InvalidStateError' && error.message.includes("candidate cannot be added before remoteDescription"))) {
                          console.error(`Error adding ICE candidate from ${sender_sid}:`, error);
                     } else if (!pc.pendingCandidates || !pc.pendingCandidates.includes(payload)) {
-                         logMessage(`INFO: ICE candidate from ${sender_sid} arrived before remote description was fully processed. Buffering.`);
+                         logMessage(`INFO: ICE candidate from ${sender_sid} arrived before remote description. Buffering.`);
                          if (!pc.pendingCandidates) pc.pendingCandidates = [];
                          if (!pc.pendingCandidates.includes(payload)) pc.pendingCandidates.push(payload);
                     }
@@ -450,8 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         await pc.addIceCandidate(new RTCIceCandidate(candidate));
                     } else {
                         logMessage(`Skipping buffered candidate for ${remoteSid}, remoteDescription not yet ready.`);
-                        pc.pendingCandidates.unshift(candidate);
-                        break;
+                        pc.pendingCandidates.unshift(candidate); break;
                     }
                 }
                 catch (error) { console.error(`Error adding buffered ICE candidate for ${remoteSid}:`, error); }
@@ -463,30 +463,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const { text, sender_sid } = data;
         if (sender_sid === mySid) return;
         const subtitleEntry = document.createElement('p');
-        subtitleEntry.style.fontStyle = 'italic';
-        subtitleEntry.style.color = '#333';
-        subtitleEntry.style.margin = '2px 0';
-        subtitleEntry.textContent = `[${sender_sid.substring(0, 6)}]: ${text}`;
+        subtitleEntry.style.fontStyle = 'italic'; subtitleEntry.style.color = '#ecf0f1'; // Light text for dark bg
+        subtitleEntry.style.margin = '2px 0'; subtitleEntry.textContent = `[${sender_sid.substring(0, 6)}]: ${text}`;
         let remoteSubtitlesDiv = document.getElementById('remote-subtitles-area');
         if (!remoteSubtitlesDiv) {
-            remoteSubtitlesDiv = document.createElement('div');
-            remoteSubtitlesDiv.id = 'remote-subtitles-area';
-            remoteSubtitlesDiv.style.marginTop = '15px';
-            remoteSubtitlesDiv.style.padding = '10px';
-            remoteSubtitlesDiv.style.border = '1px dashed #aaa';
-            remoteSubtitlesDiv.style.maxHeight = '100px';
-            remoteSubtitlesDiv.style.overflowY = 'auto';
-            remoteSubtitlesDiv.style.backgroundColor = '#efefef';
+            remoteSubtitlesDiv = document.createElement('div'); remoteSubtitlesDiv.id = 'remote-subtitles-area';
+            remoteSubtitlesDiv.style.width = '80%'; remoteSubtitlesDiv.style.maxWidth = '700px';
+            remoteSubtitlesDiv.style.backgroundColor = 'rgba(0,0,0,0.4)'; remoteSubtitlesDiv.style.color = '#ecf0f1';
+            remoteSubtitlesDiv.style.padding = '10px'; remoteSubtitlesDiv.style.borderRadius = '5px';
+            remoteSubtitlesDiv.style.marginTop = '15px'; remoteSubtitlesDiv.style.minHeight = '40px';
+            remoteSubtitlesDiv.style.border = '1px solid #34495e'; remoteSubtitlesDiv.style.overflowY = 'auto';
+
             const videosContainerEl = document.getElementById('videos-container');
-            if (videosContainerEl && videosContainerEl.parentNode) {
+            if (videosContainerEl && videosContainerEl.parentNode) { // Insert after videos container
                  videosContainerEl.parentNode.insertBefore(remoteSubtitlesDiv, videosContainerEl.nextSibling);
-            } else { document.body.appendChild(remoteSubtitlesDiv); }
+            } else { document.body.appendChild(remoteSubtitlesDiv); } // Fallback
         }
         remoteSubtitlesDiv.appendChild(subtitleEntry);
         remoteSubtitlesDiv.scrollTop = remoteSubtitlesDiv.scrollHeight;
     });
 
-    socket.on('error', (data) => {
+    socket.on('error', (data) => { // Server-sent errors (e.g., from video_on_join)
         logMessage(`Server Error: ${data.message}`);
         alert(`Server Error: ${data.message}`);
     });
@@ -495,51 +492,40 @@ document.addEventListener('DOMContentLoaded', () => {
         if (peerConnections[remoteSid]) return peerConnections[remoteSid];
         logMessage(`Creating PeerConnection to ${remoteSid}. Initiator: ${isInitiator}`);
         const pc = new RTCPeerConnection(iceConfiguration);
-        peerConnections[remoteSid] = pc;
-        pc.pendingCandidates = [];
-
+        peerConnections[remoteSid] = pc; pc.pendingCandidates = [];
         if (localStream) {
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
         } else { logMessage('Warning: Local stream not available when creating PeerConnection.'); }
-
         pc.onicecandidate = (event) => {
             if (event.candidate) socket.emit('signal', { target_sid: remoteSid, type: 'candidate', payload: event.candidate });
         };
-
         pc.ontrack = (event) => {
             logMessage(`Received remote track from ${remoteSid}`);
             let remoteVideoWrapper = document.getElementById(`video-wrapper-${remoteSid}`);
             let remoteVideo = document.getElementById(`video-${remoteSid}`);
             if (!remoteVideoWrapper) {
-                remoteVideoWrapper = document.createElement('div');
-                remoteVideoWrapper.id = `video-wrapper-${remoteSid}`;
+                remoteVideoWrapper = document.createElement('div'); remoteVideoWrapper.id = `video-wrapper-${remoteSid}`;
                 remoteVideoWrapper.className = 'video-wrapper';
-                remoteVideo = document.createElement('video');
-                remoteVideo.id = `video-${remoteSid}`;
+                remoteVideo = document.createElement('video'); remoteVideo.id = `video-${remoteSid}`;
                 remoteVideo.autoplay = true; remoteVideo.playsInline = true;
-                const nameTag = document.createElement('p');
-                nameTag.textContent = `Remote (${remoteSid.substring(0, 6)}...)`;
-                remoteVideoWrapper.appendChild(remoteVideo);
-                remoteVideoWrapper.appendChild(nameTag);
-                videosContainer.appendChild(remoteVideoWrapper);
+                const nameTag = document.createElement('p'); nameTag.textContent = `Remote (${remoteSid.substring(0, 6)}...)`;
+                remoteVideoWrapper.appendChild(remoteVideo); remoteVideoWrapper.appendChild(nameTag);
+                if(videosContainer) videosContainer.appendChild(remoteVideoWrapper);
             }
             if (event.streams && event.streams[0]) remoteVideo.srcObject = event.streams[0];
             else remoteVideo.srcObject = new MediaStream([event.track]);
         };
-
         pc.oniceconnectionstatechange = () => {
             logMessage(`ICE connection state for ${remoteSid}: ${pc.iceConnectionState}`);
             if (['failed', 'disconnected', 'closed'].includes(pc.iceConnectionState)) {
                 logMessage(`Connection to ${remoteSid} ${pc.iceConnectionState}. Cleaning up.`);
                 if (peerConnections[remoteSid]) {
-                    peerConnections[remoteSid].close();
-                    delete peerConnections[remoteSid];
+                    peerConnections[remoteSid].close(); delete peerConnections[remoteSid];
                 }
                 const remoteVideoWrapper = document.getElementById(`video-wrapper-${remoteSid}`);
                 if (remoteVideoWrapper) remoteVideoWrapper.remove();
             }
         };
-
         const originalSetRemoteDescription = pc.setRemoteDescription.bind(pc);
         pc.setRemoteDescription = async (description) => {
             try {
@@ -547,12 +533,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 await processPendingCandidates(pc, remoteSid);
             } catch (e) { console.error(`Error in setRemoteDescription for ${remoteSid}:`, e); }
         };
-
         if (isInitiator) {
             if (!localStream) {
                 console.error("Cannot create offer: local stream not available.");
-                logMessage("Error: Cannot create offer, local stream missing.");
-                return pc;
+                logMessage("Error: Cannot create offer, local stream missing."); return pc;
             }
             pc.createOffer()
                 .then(offer => pc.setLocalDescription(offer))
@@ -563,6 +547,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return pc;
     }
 
-    createRoomBtn.disabled = true;
-    joinRoomBtn.disabled = true;
+    // Initial button states - disabled until stream is ready
+    if(createRoomBtn) createRoomBtn.disabled = true;
+    if(joinRoomBtn) joinRoomBtn.disabled = true;
+    // CC button is handled by setupSubtitles and subsequent logic
 });

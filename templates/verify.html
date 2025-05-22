@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP - CloudKeeper</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="auth-container">
+        <img src="{{ url_for('static', filename='images/cloudkeeper_logo.svg') }}" alt="CloudKeeper Logo" class="logo">
+        <h2>Verify Your Email</h2>
+        {% if email %}
+        <p class="subtitle">An OTP has been sent to <strong>{{ email }}</strong>. Please enter it below.</p>
+        {% else %}
+        <p class="subtitle">Please enter the OTP sent to your email.</p>
+        {% endif %}
+         <p><a href="{{url_for('welcome')}}" class="change-email-link">Start Over / Resend OTP options could go here</a></p>
+
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('verify_otp_page') }}">
+            <input type="hidden" name="email_for_verification_fallback" value="{{ email if email else '' }}">
+            <div class="form-group">
+                <label for="otp">One-Time Password (OTP)</label>
+                <input type="text" id="otp" name="otp" required pattern="\d{6}" title="OTP should be 6 digits">
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Verify OTP</button>
+        </form>
+        <p class="footer-text">© 2024 CloudKeeper. All rights reserved.</p>
+    </div>
+</body>
+</html>

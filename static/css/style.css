@@ -1,0 +1,156 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    background-color: #343a40; /* Dark background */
+    color: #f8f9fa; /* Light text */
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Align to top for scroll */
+    min-height: 100vh;
+    padding-top: 40px; /* Space from top */
+}
+
+.auth-container, .page-container {
+    background-color: #495057; /* Slightly lighter card background */
+    padding: 30px 40px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+}
+.page-container {
+    max-width: 900px;
+}
+.page-container header {
+    margin-bottom: 20px;
+    border-bottom: 1px solid #6c757d;
+    padding-bottom: 15px;
+}
+.page-container header nav a {
+    color: #adb5bd;
+    text-decoration: none;
+    margin-left: 15px;
+}
+.page-container header nav a:hover {
+    color: #f8f9fa;
+}
+
+
+.logo {
+    width: 150px; /* Adjust as needed */
+    margin-bottom: 20px;
+}
+
+h2 {
+    color: #e9ecef;
+    margin-bottom: 10px;
+}
+.subtitle {
+    color: #adb5bd;
+    margin-bottom: 25px;
+    font-size: 0.95em;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #ced4da;
+    font-weight: 500;
+}
+
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group input[type="text"] {
+    width: calc(100% - 22px); /* Account for padding and border */
+    padding: 12px 10px;
+    border: 1px solid #6c757d;
+    border-radius: 5px;
+    background-color: #5a6268;
+    color: #f8f9fa;
+    font-size: 1em;
+}
+.form-group input::placeholder {
+    color: #adb5bd;
+}
+
+.btn {
+    display: inline-block;
+    padding: 12px 20px;
+    border-radius: 5px;
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 1em;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    border: none;
+}
+
+.btn-primary {
+    background-color: #007bff; /* CloudKeeper blue */
+    color: white;
+}
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-secondary {
+    background-color: transparent;
+    color: #adb5bd;
+    border: 1px solid #6c757d;
+}
+.btn-secondary:hover {
+    background-color: #5a6268;
+    color: #f8f9fa;
+}
+
+.btn-block {
+    width: 100%;
+    box-sizing: border-box; /* Ensure padding doesn't expand beyond width */
+}
+
+.alternative-action {
+    margin-top: 25px;
+}
+.change-email-link {
+    font-size: 0.85em;
+    color: #adb5bd;
+    text-decoration: none;
+    display: block;
+    margin-bottom:15px;
+}
+.change-email-link:hover {
+    text-decoration: underline;
+    color: #f8f9fa;
+}
+
+.footer-text {
+    margin-top: 30px;
+    font-size: 0.8em;
+    color: #6c757d;
+}
+
+.flash-message {
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+    font-size: 0.9em;
+}
+.flash-message.success { background-color: #28a745; color: white; }
+.flash-message.error { background-color: #dc3545; color: white; }
+.flash-message.warning { background-color: #ffc107; color: #343a40; }
+.flash-message.info { background-color: #17a2b8; color: white; }
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .auth-container {
+        margin: 20px;
+        padding: 20px;
+    }
+    h2 { font-size: 1.5em; }
+}
