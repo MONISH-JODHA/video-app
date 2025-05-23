@@ -1,150 +1,94 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-R">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CloudKeeper Video Chat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
-        /* Additional specific styles for video chat if needed, beyond style.css */
-        #video-chat-main {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 20px;
-            background-color: #2c3e50; /* Darker theme for video chat area */
-            min-height: 100vh;
-            color: #ecf0f1;
-        }
-        #video-controls {
-            background-color: rgba(0,0,0,0.3);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        #video-controls input[type="text"],
-        #video-controls button {
-            padding: 10px 15px;
-            border-radius: 5px;
-            border: none;
-            font-size: 1em;
-        }
-        #video-controls input[type="text"] {
-            background-color: #34495e;
-            color: #ecf0f1;
-            border: 1px solid #7f8c8d;
-        }
-        #video-controls input::placeholder { color: #bdc3c7; }
-        #video-controls button {
-            background-color: #3498db;
-            color: white;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        #video-controls button:hover { background-color: #2980b9; }
-        #video-controls button:disabled { background-color: #566573; cursor: not-allowed;}
+        body, html { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; }
+        #video-chat-main { display: flex; flex-direction: column; align-items: center; padding: 20px; background-color: #2c3e50; min-height: 100vh; color: #ecf0f1; box-sizing: border-box; }
+        .auth-info { margin-bottom: 20px; text-align: center;}
+        .auth-info a { color: #3498db; }
+        #guest-name-prompt { display: none; margin-bottom: 15px; padding: 10px; background-color: rgba(0,0,0,0.2); border-radius: 5px; text-align:center; }
+        #guest-name-prompt input { padding: 8px; margin-right: 5px; border-radius: 3px; border: 1px solid #7f8c8d; background-color: #34495e; color: #ecf0f1;}
+        #guest-name-prompt button { padding: 8px 12px; background-color: #3498db; color:white; border:none; border-radius:3px; cursor:pointer;}
 
-        #room-info-display {
-            background-color: rgba(0,0,0,0.2);
-            padding: 10px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-        #videos-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: center;
-        }
-        .video-wrapper {
-            background-color: #1c2833;
-            border: 2px solid #34495e;
-            border-radius: 8px;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        }
-        video {
-            width: 360px;
-            height: 270px;
-            background-color: black;
-            border-radius: 5px;
-        }
-        .video-wrapper p {
-            color: #ecf0f1;
-            margin-top: 8px;
-            font-size: 0.9em;
-        }
-        #subtitles-output, #remote-subtitles-area {
-            width: 80%;
-            max-width: 700px;
-            background-color: rgba(0,0,0,0.4);
-            color: #ecf0f1;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 15px;
-            min-height: 40px;
-            border: 1px solid #34495e;
-        }
-        #messages-log {
-            width: 80%;
-            max-width: 700px;
-            margin-top: 20px;
-            font-style: italic;
-            color: #bdc3c7;
-            background-color: rgba(0,0,0,0.2);
-            padding:10px;
-            border-radius: 5px;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-         #messages-log p { margin: 2px 0; font-size: 0.85em;}
+        .main-controls { background-color: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+        .main-controls input[type="text"], .main-controls button { padding: 10px 15px; border-radius: 5px; border: none; font-size: 1em; }
+        .main-controls input[type="text"] { background-color: #34495e; color: #ecf0f1; border: 1px solid #7f8c8d; }
+        .main-controls input::placeholder { color: #bdc3c7; }
+        .main-controls button { background-color: #3498db; color: white; cursor: pointer; transition: background-color 0.3s ease; }
+        .main-controls button:hover { background-color: #2980b9; }
+        .main-controls button:disabled { background-color: #566573; cursor: not-allowed;}
+        #room-info-display { background-color: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center; }
+        #videos-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; }
+        .video-wrapper { background-color: #1c2833; border: 2px solid #34495e; border-radius: 8px; padding: 0; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 8px rgba(0,0,0,0.3); position: relative; width: 380px; overflow: hidden; }
+        video { width: 100%; height: 270px; background-color: black; display: block; }
+        .participant-name-tag { color: #ecf0f1; margin-top: 0px; font-size: 0.9em; text-align: center; padding: 8px 5px; background-color: rgba(0,0,0,0.5); width: 100%; box-sizing: border-box; position: absolute; bottom: 0; left:0; } /* MODIFIED FOR NAME DISPLAY */
+        .media-controls-overlay { position: absolute; bottom: 50px; /* Adjusted for name tag */ left: 50%; transform: translateX(-50%); background-color: rgba(0, 0, 0, 0.6); padding: 8px; border-radius: 20px; display: flex; gap: 8px; opacity: 0; transition: opacity 0.3s ease; z-index:10; }
+        .video-wrapper:hover .media-controls-overlay { opacity: 1; }
+        .media-controls-overlay button { background-color: #5dade2; color: white; border: none; border-radius: 50%; width: 36px; height: 36px; font-size: 1.1em; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color 0.2s; }
+        .media-controls-overlay button:hover { background-color: #3498db; }
+        .media-controls-overlay button.active { background-color: #e74c3c; } /* Example: Red when mic/cam is off, or green when screen sharing is on */
+        #subtitles-output { width: 80%; max-width: 700px; background-color: rgba(0,0,0,0.4); color: #ecf0f1; padding: 10px; border-radius: 5px; margin-top: 15px; min-height: 40px; border: 1px solid #34495e; overflow-y: auto; max-height: 120px; }
+        #subtitles-output p { margin: 3px 0; }
+        #messages-log { width: 80%; max-width: 700px; margin-top: 20px; font-style: italic; color: #bdc3c7; background-color: rgba(0,0,0,0.2); padding:10px; border-radius: 5px; max-height: 100px; overflow-y: auto; font-size: 0.85em; }
+        #messages-log p { margin: 2px 0; }
     </style>
 </head>
 <body>
     <div id="video-chat-main">
         <h1>CloudKeeper Video Chat</h1>
-        {% if session.username %}
-            <p style="margin-bottom: 20px;">Logged in as: {{ session.username }} | <a href="{{ url_for('logout') }}" style="color: #3498db;">Logout</a></p>
-        {% else %}
-             <p style="margin-bottom: 20px;">Joining as Guest | <a href="{{ url_for('welcome') }}" style="color: #3498db;">Sign in/Sign up</a></p>
-        {% endif %}
+        <div class="auth-info">
+            {% if session.username %}
+                <p>Logged in as: <strong id="user-email-display">{{ session.username }}</strong> | <a href="{{ url_for('logout') }}">Logout</a></p>
+            {% else %}
+                 <p>Joining as Guest | <a href="{{ url_for('welcome') }}">Sign in/Sign up</a></p>
+                 <div id="guest-name-prompt">
+                     <label for="guest-name-input">Enter your name: </label>
+                     <input type="text" id="guest-name-input" placeholder="Your Name">
+                     <button id="submit-guest-name-btn">Continue</button>
+                 </div>
+            {% endif %}
+        </div>
 
-        <div id="video-controls">
+        <div class="main-controls">
             <button id="create-room-btn">Create & Join New Room</button>
             <span style="margin: 0 5px;">OR</span>
             <input type="text" id="room-id-input" placeholder="Enter Room ID to Join">
             <button id="join-room-btn">Join Existing Room</button>
             <button id="leave-room-btn" style="display:none;">Leave Room</button>
-            <!-- CC button will be added here by JS -->
         </div>
 
         <div id="room-info-display" style="display:none;">
             <p>You are in room: <strong id="display-room-id"></strong></p>
             <p style="font-size:0.8em;">Share this Room ID with others to join.</p>
         </div>
-        <!-- Subtitles display will be added here by JS -->
+
+        <div id="subtitles-output"></div>
+
         <div id="videos-container">
             <div class="video-wrapper" id="local-video-wrapper">
                 <video id="local-video" autoplay muted playsinline></video>
-                <p>You (Local)</p>
+                <div class="media-controls-overlay">
+                    <button id="toggle-mic-btn" title="Toggle Microphone">🎤</button>
+                    <button id="toggle-camera-btn" title="Toggle Camera">📷</button>
+                    <button id="toggle-cc-btn" title="Toggle Closed Captions">CC</button>
+                    <button id="toggle-screen-btn" title="Share Screen">💻</button>
+                </div>
+                <p class="participant-name-tag" id="local-participant-name">You (Local)</p>
             </div>
         </div>
-        <!-- Remote subtitles display will be added here by JS -->
+
         <div id="messages-log"></div>
     </div>
 
-<!-- In video_chat.html, before main.js script tag -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const videoSocket = io(window.location.origin + '/video');
+        // Pass session username to JavaScript if available
+        const sessionUsername = "{{ session.username if session.username else '' }}";
     </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

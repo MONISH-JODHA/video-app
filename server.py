@@ -1,4 +1,4 @@
-import flask # Not strictly necessary if Flask is imported directly
+import flask
 from flask import Flask, request, redirect, url_for, render_template, session, jsonify, flash
 from flask_cors import CORS
 import os
@@ -9,28 +9,20 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
-# pandas and numpy are imported but not used in the provided snippet.
-# If they are used elsewhere, keep them. Otherwise, they can be removed.
-# import pandas as pd
-# import numpy as np
-# import json # Imported but not used in the provided snippet.
-
-from flask_socketio import SocketIO, emit, join_room, leave_room # For video conferencing
+from flask_socketio import SocketIO, emit, join_room, leave_room # emit is already imported
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'a_very_secure_default_secret_key_123!PleaseChange')
-CORS(app, supports_credentials=True) # For general HTTP CORS
-socketio = SocketIO(app, cors_allowed_origins="*") # For SocketIO CORS
+CORS(app, supports_credentials=True)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 APP_EMAIL_SENDER = os.getenv('EMAIL_USER')
 APP_EMAIL_PASSWORD = os.getenv('PASSWORD')
-
 DB_PATH = './users.db'
 
-# --- Video Conferencing Globals ---
-video_rooms = {} # In-memory room store for video chat
+video_rooms = {}
 
 
 def init_db():
@@ -81,24 +73,21 @@ def login_required(f):
             conn.row_factory = sqlite3.Row
             user = conn.execute("SELECT verified FROM users WHERE username = ?", (session['username'],)).fetchone()
             if not user or not user['verified']:
-                session.pop('username', None) # Log out unverified or problematic user
+                session.pop('username', None)
                 flash("Account not verified. Please verify or log in again.", "danger")
                 return redirect(url_for('welcome'))
         return f(*args, **kwargs)
     return decorated_function
 
-# --- Auth Routes (New Flow) ---
 @app.route('/', methods=['GET'])
 def welcome():
     if 'username' in session:
-        # Check if user is verified before redirecting to dashboard
         with sqlite3.connect(DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
             user = conn.execute("SELECT verified FROM users WHERE username = ?", (session['username'],)).fetchone()
             if user and user['verified']:
-                return redirect(url_for('video_chat_landing_page')) # Or a general dashboard
+                return redirect(url_for('video_chat_landing_page'))
             else:
-                # This case might happen if session is stale or verification was revoked
                 session.pop('username', None)
                 flash("Your session was invalid or account is not verified. Please log in.", "warning")
     return render_template('welcome.html')
@@ -109,265 +98,201 @@ def handle_email():
     if not is_valid_email(email):
         flash("Invalid email. Must be a @cloudkeeper.com address.", "error")
         return redirect(url_for('welcome'))
-
     with sqlite3.connect(DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         user = conn.execute("SELECT * FROM users WHERE username = ?", (email,)).fetchone()
-
     if user:
         if user['verified']:
-            session['login_email'] = email # Store for password page
+            session['login_email'] = email
             return redirect(url_for('enter_password'))
-        else: # User exists but not verified
+        else:
             otp = str(random.randint(100000, 999999))
-            # Ensure conn is still available or reopen
             with sqlite3.connect(DB_PATH) as conn_update:
                  conn_update.execute("UPDATE users SET otp = ? WHERE username = ?", (otp, email))
                  conn_update.commit()
-            if send_otp_email(email, otp):
-                flash("Account not verified. A new OTP has been sent to your email.", "info")
-            else:
-                flash("Account not verified. Failed to send OTP, please try again later.", "error")
+            if send_otp_email(email, otp): flash("Account not verified. A new OTP has been sent.", "info")
+            else: flash("Account not verified. Failed to send OTP.", "error")
             session['pending_verification_email'] = email
             return redirect(url_for('verify_otp_page'))
-    else: # New user
-        session['signup_email'] = email # Store for account creation page
+    else:
+        session['signup_email'] = email
         return redirect(url_for('create_account'))
 
 @app.route('/enter_password', methods=['GET', 'POST'])
 def enter_password():
     email = session.get('login_email')
-    if not email:
-        flash("Session expired or email not provided. Please start over.", "warning")
-        return redirect(url_for('welcome'))
-
+    if not email: flash("Session expired. Please start over.", "warning"); return redirect(url_for('welcome'))
     if request.method == 'POST':
         password = request.form.get('password', '')
         with sqlite3.connect(DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
-            # !!! IMPORTANT SECURITY WARNING !!!
-            # Storing and checking passwords in plain text is highly insecure.
-            # Use a strong hashing algorithm like bcrypt or Argon2.
-            user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (email, password)).fetchone()
-        
+            user = conn.execute("SELECT * FROM users WHERE username = ? AND password = ?", (email, password)).fetchone() # INSECURE
         if user and user['verified']:
-            session['username'] = user['username']
-            session.pop('login_email', None)
-            flash(f"Welcome back, {user['username']}!", "success")
-            return redirect(url_for('video_chat_landing_page')) # Or a general dashboard
+            session['username'] = user['username']; session.pop('login_email', None)
+            flash(f"Welcome back, {user['username']}!", "success"); return redirect(url_for('video_chat_landing_page'))
         elif user and not user['verified']:
-            flash("Account exists but is not verified. Please verify your email.", "warning")
-            session['pending_verification_email'] = email # Resend to OTP verification
-            # Optionally, resend OTP here
+            flash("Account not verified. Please verify.", "warning"); session['pending_verification_email'] = email
             return redirect(url_for('verify_otp_page'))
-        else:
-            flash("Invalid password or account issue.", "error")
-            # return render_template('enter_password.html', email=email) # Stays on page
-            
+        else: flash("Invalid password or account issue.", "error")
     return render_template('enter_password.html', email=email)
 
 @app.route('/create_account', methods=['GET', 'POST'])
 def create_account():
     email = session.get('signup_email')
-    if not email:
-        flash("Session expired or email not provided for signup. Please start over.", "warning")
-        return redirect(url_for('welcome'))
-
+    if not email: flash("Session expired. Please start over.", "warning"); return redirect(url_for('welcome'))
     if request.method == 'POST':
-        password = request.form.get('password', '')
-        confirm_password = request.form.get('confirm_password', '')
-
-        if not password or len(password) < 4 : # Basic validation
-            flash("Password must be at least 4 characters.", "error")
-            return render_template('create_account.html', email=email)
-        if password != confirm_password:
-            flash("Passwords do not match.", "error")
-            return render_template('create_account.html', email=email)
-
+        password = request.form.get('password', ''); confirm_password = request.form.get('confirm_password', '')
+        if not password or len(password) < 4: flash("Password must be >= 4 chars.", "error"); return render_template('create_account.html', email=email)
+        if password != confirm_password: flash("Passwords do not match.", "error"); return render_template('create_account.html', email=email)
         otp = str(random.randint(100000, 999999))
         try:
             with sqlite3.connect(DB_PATH) as conn:
-                # !!! IMPORTANT SECURITY WARNING !!!
-                # Storing passwords in plain text is highly insecure.
-                # Hash passwords using bcrypt or Argon2 before storing.
-                conn.execute("INSERT INTO users (username, password, otp, verified) VALUES (?, ?, ?, 0)", (email, password, otp))
+                conn.execute("INSERT INTO users (username, password, otp, verified) VALUES (?, ?, ?, 0)", (email, password, otp)) # INSECURE
                 conn.commit()
-            
             if send_otp_email(email, otp):
-                session.pop('signup_email', None)
-                session['pending_verification_email'] = email
-                flash("Account created. Please check your email for the OTP to verify.", "success")
-                return redirect(url_for('verify_otp_page'))
-            else:
-                flash("Account created, but failed to send OTP. Please try verifying later or contact support.", "error")
-                # Decide if user should stay here or be redirected
-                return render_template('create_account.html', email=email)
-        except sqlite3.IntegrityError:
-            flash("This email is already registered. Please try signing in.", "error")
-            session.pop('signup_email', None) # Clear signup email attempt
-            return redirect(url_for('welcome'))
-        except Exception as e:
-            print(f"Error in create_account: {e}") # Log detailed error
-            flash(f"An unexpected error occurred. Please try again.", "error") # User-friendly message
-            return render_template('create_account.html', email=email)
-
+                session.pop('signup_email', None); session['pending_verification_email'] = email
+                flash("Account created. Check email for OTP.", "success"); return redirect(url_for('verify_otp_page'))
+            else: flash("Account created, but failed to send OTP.", "error"); return render_template('create_account.html', email=email)
+        except sqlite3.IntegrityError: flash("Email already registered.", "error"); session.pop('signup_email', None); return redirect(url_for('welcome'))
+        except Exception as e: print(f"Create account error: {e}"); flash(f"An unexpected error occurred. Please try again.", "error"); return render_template('create_account.html', email=email)
     return render_template('create_account.html', email=email)
 
 @app.route('/verify_otp', methods=['GET', 'POST'])
 def verify_otp_page():
-    # Prioritize email from POST form data if available (e.g. if resubmitting on error)
-    # Fallback to session, then to an empty string if neither.
     email_for_template = request.form.get('email_for_verification_fallback', session.get('pending_verification_email', ''))
-
-    if request.method == 'GET' and not session.get('pending_verification_email'):
-        flash("No pending verification. Please start the signup or login process.", "info")
-        return redirect(url_for('welcome'))
-    
+    if request.method == 'GET' and not session.get('pending_verification_email'): flash("No pending verification.", "info"); return redirect(url_for('welcome'))
     if request.method == 'POST':
         otp_input = request.form.get('otp', '').strip()
-        # Ensure email_to_verify_on_post is robustly fetched
-        email_to_verify_on_post = request.form.get('email_for_verification_fallback', session.get('pending_verification_email', ''))
-
-        if not email_to_verify_on_post: # Critical check
-            flash("Could not determine email for OTP verification. Please start over.", "error")
-            return redirect(url_for('welcome'))
-        if not otp_input:
-            flash("OTP is required.", "error")
-            return render_template('verify.html', email=email_to_verify_on_post) # Use the email we just determined
-        
+        email_to_verify = request.form.get('email_for_verification_fallback', session.get('pending_verification_email', ''))
+        if not email_to_verify: flash("Could not determine email for OTP. Start over.", "error"); return redirect(url_for('welcome'))
+        if not otp_input: flash("OTP required.", "error"); return render_template('verify.html', email=email_to_verify)
         with sqlite3.connect(DB_PATH) as conn:
             conn.row_factory = sqlite3.Row
-            user = conn.execute("SELECT * FROM users WHERE username = ?", (email_to_verify_on_post,)).fetchone()
-
+            user = conn.execute("SELECT * FROM users WHERE username = ?", (email_to_verify,)).fetchone()
             if user and not user['verified'] and user['otp'] == otp_input:
-                conn.execute("UPDATE users SET verified = 1, otp = NULL WHERE username = ?", (email_to_verify_on_post,))
-                conn.commit()
-                session.pop('pending_verification_email', None)
-                flash("Email verified successfully! Please log in.", "success")
-                return redirect(url_for('welcome'))
-            elif user and user['verified']: # Already verified
-                session.pop('pending_verification_email', None)
-                flash("This account is already verified. You can log in.", "info")
-                return redirect(url_for('welcome'))
-            else: # Invalid OTP or user not found (though user should exist if email_to_verify_on_post was set)
-                flash("Invalid OTP. Please try again.", "error") # Removed "or user not found" for simplicity
-                return render_template('verify.html', email=email_to_verify_on_post)
-                
+                conn.execute("UPDATE users SET verified = 1, otp = NULL WHERE username = ?", (email_to_verify,)); conn.commit()
+                session.pop('pending_verification_email', None); flash("Email verified! Please log in.", "success"); return redirect(url_for('welcome'))
+            elif user and user['verified']: session.pop('pending_verification_email', None); flash("Account already verified. Log in.", "info"); return redirect(url_for('welcome'))
+            else: flash("Invalid OTP.", "error"); return render_template('verify.html', email=email_to_verify)
     return render_template('verify.html', email=email_for_template)
 
-
 @app.route('/logout')
-def logout():
-    session.clear()
-    flash("You have been logged out.", "info")
-    return redirect(url_for('welcome'))
+def logout(): session.clear(); flash("Logged out.", "info"); return redirect(url_for('welcome'))
 
-# --- Video Conferencing Routes (Integrated) ---
 @app.route('/video_chat_landing_page')
-# @login_required # Uncomment this if video chat should only be for logged-in, verified users
-def video_chat_landing_page():
-    # IMPORTANT: This page (video_chat.html) must contain client-side JavaScript
-    # that connects to the SocketIO server using the '/video' namespace.
-    # Example: const socket = io('/video');
-    return render_template('video_chat.html')
+def video_chat_landing_page(): return render_template('video_chat.html')
+
 
 @socketio.on('connect', namespace='/video')
 def video_handle_connect():
-    print(f"Video client connected: {request.sid} to /video namespace")
+    print(f"Video client connected: {request.sid}")
 
 @socketio.on('disconnect', namespace='/video')
 def video_handle_disconnect():
-    print(f"Video client disconnected: {request.sid} from /video namespace")
+    user_sid_leaving = request.sid
+    room_left = None
+    user_name_leaving = "Unknown"
+    print(f"Video client disconnecting: {user_sid_leaving}")
     for room_id, occupants in list(video_rooms.items()):
-        if request.sid in occupants:
-            occupants.remove(request.sid)
-            # leave_room is context-aware of namespace if called inside namespaced handler
-            # but explicit sid and namespace is good for clarity.
-            leave_room(room_id, sid=request.sid, namespace='/video')
-            print(f"User {request.sid} left video room {room_id}")
-            
-            # Emit to the specific room in the specific namespace
-            socketio.to(room_id, namespace='/video').emit('user-left', {'sid': request.sid})
-            
+        if user_sid_leaving in occupants:
+            user_name_leaving = occupants.pop(user_sid_leaving)
+            room_left = room_id
+            leave_room(room_id, sid=user_sid_leaving, namespace='/video')
+            print(f"User {user_name_leaving} ({user_sid_leaving}) left video room {room_id}")
+            # CORRECTED EMIT:
+            socketio.emit('user-left', {'sid': user_sid_leaving, 'name': user_name_leaving}, room=room_id, namespace='/video')
             if not occupants:
                 del video_rooms[room_id]
                 print(f"Video room {room_id} is empty and removed.")
             break
+    if not room_left:
+        print(f"User {user_sid_leaving} disconnected but was not found in any active room.")
 
 @socketio.on('join', namespace='/video')
 def video_on_join(data):
     room_id = data.get('room')
+    user_name = data.get('name', f"Guest_{request.sid[:4]}")
     if not room_id:
-        # Emit error back to the sender (request.sid) in their current namespace
-        emit('error', {'message': 'Room ID is required'})
+        emit('error', {'message': 'Room ID is required'}) # This emit is fine as it's direct to sender
         return
-
-    # Join the SocketIO room structure (specific to namespace)
     join_room(room_id, sid=request.sid, namespace='/video')
-    
     if room_id not in video_rooms:
-        video_rooms[room_id] = []
+        video_rooms[room_id] = {}
+    other_users_info = []
+    if video_rooms[room_id]:
+        for sid, name_in_room in video_rooms[room_id].items():
+            if sid != request.sid:
+                other_users_info.append({'sid': sid, 'name': name_in_room})
+    if other_users_info:
+        emit('other-users', {'users': other_users_info}) # This emit is fine (to sender)
+    video_rooms[room_id][request.sid] = user_name
     
-    # Tell the new user about existing users in our custom tracking
-    # Important: This list is from *before* adding the current user to video_rooms[room_id]
-    other_users_in_room = [sid for sid in video_rooms[room_id] if sid != request.sid]
-    if other_users_in_room:
-        # Emit only to the sender (request.sid)
-        emit('other-users', {'users': other_users_in_room})
-
-    # Add user to our custom room tracking if not already present
-    if request.sid not in video_rooms[room_id]:
-        video_rooms[room_id].append(request.sid)
+    # CORRECTED EMIT:
+    socketio.emit('user-joined', {
+        'sid': request.sid,
+        'name': user_name
+    }, room=room_id, namespace='/video', skip_sid=request.sid) # Use skip_sid to exclude sender
     
-    # Notify OTHERS in the SocketIO room about the new user.
-    # .except_self() correctly omits request.sid from the broadcast within this handler's context.
-    socketio.to(room_id, namespace='/video').except_self().emit('user-joined', {'sid': request.sid})
-    
-    print(f"User {request.sid} joined video room {room_id}. Occupants: {video_rooms[room_id]}")
-    
-    # Confirm to the joining user that they've joined
-    emit('joined-room', {'room_id': room_id, 'sid': request.sid})
-
+    print(f"User {user_name} ({request.sid}) joined room {room_id}. Occupants: {len(video_rooms[room_id])}")
+    emit('joined-room', {'room_id': room_id, 'sid': request.sid}) # This emit is fine (to sender)
 
 @socketio.on('signal', namespace='/video')
 def video_on_signal(data):
     target_sid = data.get('target_sid')
     if not target_sid:
-        print("Video signal: Error: Missing target_sid")
-        # Optionally, emit an error back to sender:
-        # emit('error', {'message': 'Signal target_sid is required'})
+        print("Signal error: Missing target_sid")
         return
-
+    sender_name = "Unknown"
+    for room_occupants in video_rooms.values():
+        if request.sid in room_occupants:
+            sender_name = room_occupants[request.sid]
+            break
     message_to_send = {
         'sender_sid': request.sid,
+        'sender_name': sender_name,
         'type': data.get('type'),
         'payload': data.get('payload')
     }
-    # Send directly to the target SID's private room, in the correct namespace
+    # This emit is to a specific SID (target_sid acts as the room here)
     socketio.emit('signal', message_to_send, room=target_sid, namespace='/video')
-    # print(f"Relaying signal from {request.sid} to {target_sid} in /video: Type {data.get('type')}")
-
 
 @socketio.on('subtitle-text', namespace='/video')
 def video_handle_subtitle_text(data):
     room_id = data.get('room')
     text = data.get('text')
-    # Use sender_sid from data if provided (e.g., for relayed subtitles), else default to current emitter
-    sender_sid = data.get('sender_sid', request.sid) 
-
+    sender_sid = request.sid
+    user_name = "Unknown"
+    if room_id in video_rooms and sender_sid in video_rooms[room_id]:
+        user_name = video_rooms[room_id][sender_sid]
+    else:
+        user_name = data.get('name', f"User_{sender_sid[:4]}")
     if room_id and text:
-        # print(f"Subtitle in room {room_id} from {sender_sid} (via {request.sid}): {text}")
-        # Broadcast to everyone in the room *except* the original sender (request.sid)
-        socketio.to(room_id, namespace='/video').except_self().emit('new-subtitle', {
+        # CORRECTED EMIT:
+        socketio.emit('new-subtitle', {
             'text': text,
-            'sender_sid': sender_sid # This ensures the displayed sender is correct
-        })
+            'sender_sid': sender_sid,
+            'name': user_name
+        }, room=room_id, namespace='/video', skip_sid=sender_sid)
 
-# --- Main Execution ---
+@socketio.on('leave', namespace='/video')
+def video_on_leave(data): # This is for an explicit 'leave' event if client sends one
+    room_id = data.get('room')
+    user_sid_leaving = request.sid
+    user_name_leaving = "Unknown"
+    if room_id and room_id in video_rooms and user_sid_leaving in video_rooms[room_id]:
+        user_name_leaving = video_rooms[room_id].pop(user_sid_leaving)
+        leave_room(room_id, sid=user_sid_leaving, namespace='/video')
+        print(f"User {user_name_leaving} ({user_sid_leaving}) explicitly left video room {room_id}")
+        # CORRECTED EMIT:
+        socketio.emit('user-left', {'sid': user_sid_leaving, 'name': user_name_leaving}, room=room_id, namespace='/video') # Notify others
+        if not video_rooms[room_id]:
+            del video_rooms[room_id]
+            print(f"Video room {room_id} is empty and removed after explicit leave.")
+        emit('left-room-ack', {'room_id': room_id, 'message': 'You have left the room.'}) # Ack to leaving user (fine as is)
+    else:
+        print(f"User {user_sid_leaving} tried to explicitly leave room {room_id} but was not found or room invalid.")
+
 if __name__ == '__main__':
     init_db()
     print("Starting Flask-SocketIO server on http://localhost:5000")
-    # Ensure you have eventlet or gevent installed for production,
-    # e.g., pip install eventlet
-    # For development, the Werkzeug development server (default) is usually fine.
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
