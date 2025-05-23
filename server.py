@@ -296,3 +296,4 @@ if __name__ == '__main__':
     init_db()
     print("Starting Flask-SocketIO server on http://localhost:5000")
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    
