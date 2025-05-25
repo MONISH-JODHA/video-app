@@ -6,7 +6,7 @@
     <title>Create Account - CloudKeeper</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body class="auth-page"> 
     <div class="auth-container">
         <img src="{{ url_for('static', filename='images/cloudkeeper_logo.svg') }}" alt="CloudKeeper Logo" class="logo">
         <h2>Create Your CloudKeeper Account</h2>
@@ -30,9 +30,10 @@
                 <label for="confirm_password">Confirm Password</label>
                 <input type="password" id="confirm_password" name="confirm_password" required minlength="4">
             </div>
-            <button type="submit" class="btn btn-primary btn-block">Create Account & Send OTP</button>
+            <button type="submit" class="btn-block">Create Account & Send OTP</button> 
         </form>
-         <p class="footer-text">© 2024 CloudKeeper. All rights reserved.</p>
+         <p class="footer-text">© <span id="current-year-footer">2024</span> CloudKeeper. All rights reserved.</p>
     </div>
+    <script>document.getElementById('current-year-footer').textContent = new Date().getFullYear();</script>
 </body>
 </html>

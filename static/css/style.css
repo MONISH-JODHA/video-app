@@ -1,156 +1,690 @@
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+/* static/css/style.css */
+:root {
+    --primary-bg: #1a1d21;
+    --secondary-bg: #23272a;
+    --tertiary-bg: #2c2f33;
+    --accent-bg: #36393f;
+    --primary-text: #dcddde;
+    --secondary-text: #b9bbbe;
+    --tertiary-text: #8e9297;
+    --accent-color: #5865f2;
+    --accent-hover: #4752c4;
+    --green-accent: #3ba55d;
+    --red-accent: #ed4245;
+    --yellow-accent: #faa61a;
+    --border-color: #40444b;
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --border-radius: 8px;
+    --input-height: 44px;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body, html {
     margin: 0;
-    background-color: #343a40; /* Dark background */
-    color: #f8f9fa; /* Light text */
+    padding: 0;
+    font-family: var(--font-family);
+    background-color: var(--primary-bg);
+    color: var(--primary-text);
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+}
+
+/* === Video Conferencing Page Styles === */
+#video-chat-main-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.app-header {
+    background-color: var(--secondary-bg);
+    padding: 12px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    box-shadow: var(--card-shadow);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.logo-title .logo {
+    height: 32px;
+    margin-right: 12px;
+}
+
+.app-header h1 {
+    margin: 0;
+    font-size: 1.5em;
+    font-weight: 600;
+    color: var(--primary-text);
+}
+
+.auth-info { /* This class is used in video_chat.html header */
+    font-size: 0.9em;
+    color: var(--secondary-text);
+}
+.auth-info a {
+    color: var(--accent-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+.auth-info a:hover {
+    text-decoration: underline;
+}
+
+#guest-name-prompt-container {
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* Align to top for scroll */
-    min-height: 100vh;
-    padding-top: 40px; /* Space from top */
+    align-items: center;
+    padding: 20px;
 }
-
-.auth-container, .page-container {
-    background-color: #495057; /* Slightly lighter card background */
-    padding: 30px 40px;
-    border-radius: 8px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    width: 100%;
-    max-width: 420px;
+#guest-name-prompt {
+    display: none; /* Shown by JS */
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    padding: 25px 30px;
+    background-color: var(--secondary-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border-color);
+    max-width: 450px;
+    width: 90%;
+}
+#guest-name-prompt h2 {
+    margin-top: 0;
+    margin-bottom: 5px;
+    color: var(--primary-text);
+    font-weight: 600;
+}
+#guest-name-prompt p {
+    margin-bottom: 15px;
+    color: var(--secondary-text);
+    font-size: 0.95em;
     text-align: center;
 }
-.page-container {
-    max-width: 900px;
-}
-.page-container header {
-    margin-bottom: 20px;
-    border-bottom: 1px solid #6c757d;
-    padding-bottom: 15px;
-}
-.page-container header nav a {
-    color: #adb5bd;
-    text-decoration: none;
-    margin-left: 15px;
-}
-.page-container header nav a:hover {
-    color: #f8f9fa;
-}
-
-
-.logo {
-    width: 150px; /* Adjust as needed */
-    margin-bottom: 20px;
-}
-
-h2 {
-    color: #e9ecef;
-    margin-bottom: 10px;
-}
-.subtitle {
-    color: #adb5bd;
-    margin-bottom: 25px;
-    font-size: 0.95em;
-}
-
-.form-group {
-    margin-bottom: 20px;
-    text-align: left;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    color: #ced4da;
-    font-weight: 500;
-}
-
-.form-group input[type="email"],
-.form-group input[type="password"],
-.form-group input[type="text"] {
-    width: calc(100% - 22px); /* Account for padding and border */
-    padding: 12px 10px;
-    border: 1px solid #6c757d;
-    border-radius: 5px;
-    background-color: #5a6268;
-    color: #f8f9fa;
-    font-size: 1em;
-}
-.form-group input::placeholder {
-    color: #adb5bd;
-}
-
-.btn {
-    display: inline-block;
-    padding: 12px 20px;
-    border-radius: 5px;
-    text-decoration: none;
-    cursor: pointer;
-    font-weight: 500;
-    font-size: 1em;
-    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
-    border: none;
-}
-
-.btn-primary {
-    background-color: #007bff; /* CloudKeeper blue */
-    color: white;
-}
-.btn-primary:hover {
-    background-color: #0056b3;
-}
-
-.btn-secondary {
-    background-color: transparent;
-    color: #adb5bd;
-    border: 1px solid #6c757d;
-}
-.btn-secondary:hover {
-    background-color: #5a6268;
-    color: #f8f9fa;
-}
-
-.btn-block {
+#guest-name-prompt input[type="text"] {
     width: 100%;
-    box-sizing: border-box; /* Ensure padding doesn't expand beyond width */
+    padding: 12px 15px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    background-color: var(--tertiary-bg);
+    color: var(--primary-text);
+    font-size: 1em;
+    height: var(--input-height);
+}
+#guest-name-prompt input[type="text"]::placeholder { color: var(--tertiary-text); }
+#guest-name-prompt input[type="text"]:focus { border-color: var(--accent-color); outline: none; background-color: var(--accent-bg);}
+#guest-name-prompt button {
+    padding: 12px 25px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1em;
+    transition: background-color 0.2s ease;
+    width: 100%;
+    height: var(--input-height);
+}
+#guest-name-prompt button:hover { background-color: var(--accent-hover); }
+
+.main-controls-area {
+    background-color: var(--tertiary-bg);
+    padding: 15px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+.room-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.control-button { /* Used for Create, Join, Share, Leave buttons */
+    padding: 10px 20px;
+    border-radius: var(--border-radius);
+    border: none;
+    font-size: 0.95em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: var(--input-height);
+    min-width: 150px;
+    justify-content: center;
+}
+.control-button .icon { font-size: 1.1em; }
+.primary-button { background-color: var(--accent-color); color: white; }
+.primary-button:hover { background-color: var(--accent-hover); }
+.secondary-button { background-color: var(--accent-bg); color: var(--primary-text); border: 1px solid var(--border-color); }
+.secondary-button:hover { background-color: #40454b; }
+.danger-button { background-color: var(--red-accent); color: white; }
+.danger-button:hover { background-color: #c23639; }
+.control-button:active { transform: translateY(1px); }
+.control-button:disabled { background-color: var(--accent-bg) !important; color: var(--tertiary-text) !important; cursor: not-allowed; opacity: 0.6;}
+
+.main-controls-area input[type="text"] { /* For Room ID input */
+    padding: 10px 15px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    background-color: var(--primary-bg);
+    color: var(--primary-text);
+    font-size: 0.95em;
+    height: var(--input-height);
+    min-width: 200px;
+}
+.main-controls-area input[type="text"]::placeholder { color: var(--tertiary-text); }
+.main-controls-area input[type="text"]:focus { border-color: var(--accent-color); outline: none; background-color: var(--secondary-bg);}
+.separator-text { color: var(--secondary-text); margin: 0 5px; }
+
+#room-info-display {
+    background-color: var(--tertiary-bg);
+    padding: 12px 20px;
+    border-radius: var(--border-radius);
+    margin: 15px auto;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    max-width: 500px;
+    width: 90%;
+}
+#room-info-display p { margin: 5px 0; font-size: 0.95em;}
+#room-info-display strong { color: var(--accent-color); font-weight: 600; }
+.share-text { font-size: 0.85em !important; color: var(--secondary-text); }
+
+#videos-container-wrapper {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+}
+#videos-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    width: 100%;
+    max-width: 1600px;
+}
+.video-wrapper {
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--card-shadow);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease, width 0.3s ease, height 0.3s ease;
+    aspect-ratio: 16 / 10;
+}
+.video-wrapper.maximized {
+    position: fixed !important; top: 0 !important; left: 0 !important;
+    width: 100vw !important; height: 100vh !important;
+    max-width: none !important; min-width: none !important;
+    border-radius: 0 !important; z-index: 1000 !important;
+    background-color: #000; aspect-ratio: unset; border: none;
+}
+.video-wrapper.maximized video { object-fit: contain; border-radius: 0; }
+.video-wrapper.maximized .participant-name-tag,
+.video-wrapper.maximized .video-overlay-controls, /* Ensure correct class name */
+.video-wrapper.maximized .media-controls-overlay, /* Fallback or if used */
+.video-wrapper.maximized .maximize-btn-wrapper { z-index: 1001; }
+
+.video-wrapper.maximized .video-overlay-controls, /* Ensure correct class name */
+.video-wrapper.maximized .media-controls-overlay { bottom: 20px !important; }
+
+.video-wrapper.maximized .participant-name-tag {
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 60%, transparent 100%);
+    font-size: 1em; padding: 10px 15px; /* More prominent when maximized */
+}
+.video-wrapper video {
+    width: 100%; height: 100%; object-fit: cover;
+    background-color: #0c0d0e; display: block;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+.participant-name-tag {
+    color: var(--primary-text); font-size: 0.9em; font-weight: 500;
+    text-align: center; padding: 8px 12px;
+    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 60%, transparent 100%);
+    width: 100%; box-sizing: border-box; position: absolute; bottom: 0; left: 0;
+    border-bottom-left-radius: var(--border-radius); border-bottom-right-radius: var(--border-radius);
+    z-index: 5; pointer-events: none;
+}
+.video-overlay-controls { /* This is the main class for the on-video controls container */
+    position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+    padding-bottom: 40px; /* So it sits above name tag */
+    opacity: 0; transition: opacity 0.2s ease-in-out, bottom 0.2s ease-in-out;
+    pointer-events: none; z-index: 10; display: flex; justify-content: center; width: 100%;
+}
+.video-wrapper:hover .video-overlay-controls { opacity: 1; bottom: 15px; pointer-events: auto; }
+.media-controls-group { /* The pill-shaped group inside the overlay */
+    background-color: rgba(30, 32, 35, 0.85); backdrop-filter: blur(8px);
+    padding: 8px 10px; border-radius: 25px; display: flex; gap: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.media-control-button {
+    background-color: var(--accent-bg); color: var(--primary-text);
+    border: none; border-radius: 50%; width: 42px; height: 42px;
+    font-size: 1.3em; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background-color 0.2s, transform 0.1s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.media-control-button:hover { background-color: #474b52; }
+.media-control-button:active { transform: scale(0.95); }
+.media-control-button.toggled-off { background-color: var(--red-accent); color: white; }
+.media-control-button.toggled-on { background-color: var(--green-accent); color: white; }
+
+.maximize-btn-wrapper { position: absolute; top: 12px; right: 12px; z-index: 15; }
+.maximize-btn {
+    background-color: rgba(30, 32, 35, 0.7); backdrop-filter: blur(5px);
+    color: var(--primary-text); border: 1px solid var(--border-color);
+    border-radius: var(--border-radius); width: 36px; height: 36px;
+    font-size: 1.1em; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s ease, background-color 0.2s;
+}
+.video-wrapper:hover .maximize-btn { opacity: 1; }
+.maximize-btn:hover { background-color: var(--accent-bg); }
+.video-wrapper.maximized .maximize-btn { opacity: 1; } /* Always show on maximized video */
+
+#subtitles-output-container, #messages-log-container {
+    width: 100%; display: flex; justify-content: center;
+    padding: 0 20px; margin-top: 15px;
+}
+#subtitles-output {
+    width: 100%; max-width: 900px; background-color: var(--tertiary-bg);
+    color: var(--primary-text); padding: 12px 18px; border-radius: var(--border-radius);
+    min-height: 45px; border: 1px solid var(--border-color); overflow-y: auto;
+    max-height: 150px; font-size: 0.95em; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+#subtitles-output p { margin: 4px 0; line-height: 1.5; }
+#subtitles-output strong { color: var(--accent-color); font-weight: 600; }
+
+#messages-log {
+    width: 100%; max-width: 900px; font-style: italic; color: var(--secondary-text);
+    background-color: var(--tertiary-bg); padding:10px 18px; border-radius: var(--border-radius);
+    max-height: 120px; overflow-y: auto; font-size: 0.85em;
+    border: 1px solid var(--border-color); margin-bottom: 20px;
+}
+#messages-log p { margin: 3px 0; }
+
+@media (max-width: 992px) { #videos-container { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); } }
+@media (max-width: 768px) {
+    .app-header { padding: 10px 15px; flex-direction: column; gap: 8px; text-align: center;}
+    .app-header h1 { font-size: 1.3em; }
+    .main-controls-area { flex-direction: column; padding: 15px;}
+    .room-actions { flex-direction: column; width: 100%;}
+    .room-actions input[type="text"], .room-actions button { width: 100%; max-width: 350px;}
+    .separator-text { display: none; }
+    #videos-container { grid-template-columns: 1fr; gap: 15px; padding: 15px; }
+    .video-wrapper { aspect-ratio: 16 / 9; }
+    .video-overlay-controls { bottom: 5px; opacity: 0.8; } /* More visible on touch */
+    .video-wrapper:hover .video-overlay-controls { bottom: 10px; opacity: 1;}
+    .maximize-btn { opacity: 0.7; }
 }
 
-.alternative-action {
-    margin-top: 25px;
+/* === Authentication Page Styles === */
+body.auth-page {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
 }
-.change-email-link {
-    font-size: 0.85em;
-    color: #adb5bd;
+
+.auth-container {
+    background-color: var(--secondary-bg);
+    padding: 35px 45px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    margin-top: 20px; /* Or auto if only element */
+    margin-bottom: 20px; /* Or auto */
+}
+
+.auth-container .logo {
+    max-width: 120px;
+    height: auto;
+    margin-bottom: 20px;
+    /* filter: invert(1) hue-rotate(180deg); /* Uncomment if logo is dark */
+}
+
+.auth-container h2 {
+    color: var(--primary-text);
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-weight: 600;
+    font-size: 1.75em;
+}
+
+.auth-container .subtitle {
+    color: var(--secondary-text);
+    margin-bottom: 25px;
+    font-size: 1em;
+    line-height: 1.5;
+}
+.auth-container .subtitle strong {
+    color: var(--primary-text);
+    font-weight: 500;
+}
+
+.auth-container .change-email-link {
+    display: inline-block;
+    color: var(--accent-color);
     text-decoration: none;
-    display: block;
-    margin-bottom:15px;
+    font-size: 0.9em;
+    margin-bottom: 25px;
 }
-.change-email-link:hover {
+.auth-container .change-email-link:hover {
     text-decoration: underline;
-    color: #f8f9fa;
-}
-
-.footer-text {
-    margin-top: 30px;
-    font-size: 0.8em;
-    color: #6c757d;
 }
 
 .flash-message {
-    padding: 10px;
-    margin-bottom: 15px;
-    border-radius: 5px;
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    border-radius: var(--border-radius);
+    font-size: 0.95em;
+    text-align: left;
+    border-width: 1px;
+    border-style: solid;
+    display: flex;
+    align-items: center;
+}
+.flash-message.success { background-color: rgba(59, 165, 93, 0.2); border-color: var(--green-accent); color: #a0d9b1; }
+.flash-message.error { background-color: rgba(237, 66, 69, 0.2); border-color: var(--red-accent); color: #f0989a; }
+.flash-message.warning { background-color: rgba(250, 166, 26, 0.2); border-color: var(--yellow-accent); color: #f5c57b; }
+.flash-message.info { background-color: rgba(88, 101, 242, 0.2); border-color: var(--accent-color); color: #a3abf5; }
+
+.auth-container .form-group {
+    margin-bottom: 22px;
+    text-align: left;
+}
+.auth-container .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--secondary-text);
+    font-weight: 500;
     font-size: 0.9em;
 }
-.flash-message.success { background-color: #28a745; color: white; }
-.flash-message.error { background-color: #dc3545; color: white; }
-.flash-message.warning { background-color: #ffc107; color: #343a40; }
-.flash-message.info { background-color: #17a2b8; color: white; }
-
-/* Responsive adjustments */
-@media (max-width: 480px) {
-    .auth-container {
-        margin: 20px;
-        padding: 20px;
-    }
-    h2 { font-size: 1.5em; }
+.auth-container .form-group input[type="text"],
+.auth-container .form-group input[type="password"],
+.auth-container .form-group input[type="email"] {
+    width: 100%;
+    padding: 0 15px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    background-color: var(--tertiary-bg);
+    color: var(--primary-text);
+    font-size: 1em;
+    height: var(--input-height);
+    line-height: var(--input-height);
+    transition: border-color 0.2s ease, background-color 0.2s ease;
 }
+.auth-container .form-group input::placeholder { color: var(--tertiary-text); }
+.auth-container .form-group input:focus {
+    border-color: var(--accent-color);
+    outline: none;
+    background-color: var(--accent-bg);
+    box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.3);
+}
+
+.auth-container .btn-block {
+    width: 100%;
+    padding: 0 15px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1em;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    height: var(--input-height);
+    line-height: var(--input-height);
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+.auth-container .btn-block:hover { background-color: var(--accent-hover); }
+.auth-container .btn-block:active { transform: translateY(1px); }
+
+.auth-container .alternative-action {
+    margin-top: 25px;
+    margin-bottom: 15px;
+    width: 100%;
+}
+.auth-container .alternative-action p {
+    color: var(--tertiary-text);
+    font-size: 0.9em;
+    margin-bottom: 10px;
+    position: relative;
+    text-align: center;
+}
+.auth-container .alternative-action p::before,
+.auth-container .alternative-action p::after {
+    content: ""; display: inline-block; width: 35%;
+    height: 1px; background-color: var(--border-color);
+    vertical-align: middle; margin: 0 10px;
+}
+.auth-container .secondary-action-btn { /* For "Join without account" on welcome.html */
+    background-color: var(--accent-bg);
+    color: var(--primary-text);
+    border: 1px solid var(--border-color);
+}
+.auth-container .secondary-action-btn:hover {
+    background-color: #40454b;
+    border-color: var(--accent-color);
+}
+
+.auth-container .footer-text {
+    margin-top: 30px;
+    color: var(--tertiary-text);
+    font-size: 0.8em;
+}
+
+/* Share Modal Styles (from previous HTML, ensure they are here) */
+/* static/css/style.css */
+
+/* ... (Keep existing :root and other global styles) ... */
+
+/* === Modals (Generic - Guest Name, Share) === */
+.modal {
+    display: none; /* Hidden by default, shown by JS */
+    position: fixed;
+    z-index: 1050;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto; /* Enable scroll if content overflows */
+    background-color: rgba(10, 11, 13, 0.85); /* Darker, more immersive overlay */
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px); /* Stronger blur */
+    padding: 20px;
+    animation: fadeInModal 0.3s ease-out forwards;
+}
+
+@keyframes fadeInModal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    background-color: var(--secondary-bg);
+    margin: auto; /* Center horizontally */
+    padding: 28px 35px; /* More padding */
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius); /* Consistent radius */
+    width: 100%;
+    max-width: 420px; /* Optimal width for a single input form */
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4); /* Enhanced shadow */
+    position: relative;
+    color: var(--primary-text);
+    display: flex;
+    flex-direction: column;
+    gap: 20px; /* Space between header, body, footer */
+    animation: scaleUpModal 0.3s ease-out forwards;
+    transform-origin: center center;
+}
+
+@keyframes scaleUpModal {
+    from { opacity:0; transform: scale(0.95); }
+    to { opacity:1; transform: scale(1); }
+}
+
+.modal-header {
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between; /* For title and close button */
+    align-items: center;
+    text-align: center; /* Center title if no close button */
+    width: 100%;
+}
+
+.modal-header h2 {
+    margin: 0 auto; /* Center title when no close button */
+    font-weight: 600;
+    font-size: 1.3em; /* Adjusted for better proportion */
+    color: var(--primary-text);
+}
+
+/* Close button specific to Share Modal if Guest Name Modal doesn't have one */
+#share-modal .modal-header h2 { margin: 0; /* Align left if close button present */ }
+.close-modal-btn {
+    color: var(--secondary-text);
+    font-size: 24px;
+    font-weight: bold;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color var(--transition-fast), transform var(--transition-fast);
+}
+.close-modal-btn:hover,
+.close-modal-btn:focus {
+    color: var(--primary-text);
+    transform: scale(1.1);
+}
+
+.modal-body p {
+    font-size: 0.95em; /* Slightly larger for better readability */
+    color: var(--secondary-text);
+    margin-bottom: 18px; /* More space below instruction text */
+    line-height: 1.5;
+    text-align: center;
+}
+
+.modal-body .form-group {
+    margin-bottom: 18px;
+    text-align: left;
+}
+
+.modal-body .form-group label {
+    display: block;
+    margin-bottom: 8px; /* More space between label and input */
+    font-weight: 500;
+    font-size: 0.9em; /* Slightly larger label */
+    color: var(--secondary-text);
+}
+
+.modal-body .form-group input[type="email"],
+.modal-body .form-group input[type="text"] {
+    width: 100%;
+    padding: 0 15px; /* Consistent padding */
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    background-color: var(--tertiary-bg);
+    color: var(--primary-text);
+    font-size: 1em; /* Larger font in input */
+    height: var(--input-height);
+    line-height: var(--input-height);
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.modal-body .form-group input[type="email"]::placeholder,
+.modal-body .form-group input[type="text"]::placeholder {
+    color: var(--tertiary-text);
+    opacity: 0.8;
+}
+
+.modal-body .form-group input[type="email"]:focus,
+.modal-body .form-group input[type="text"]:focus {
+    border-color: var(--accent-color);
+    outline: none;
+    background-color: var(--hover-bg); /* Use hover-bg for focus */
+    box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.3); /* Brighter focus ring */
+}
+
+#share-status-message,
+#guest-name-status-message {
+    margin-top: 12px;
+    font-size: 0.875em; /* Slightly larger status message */
+    text-align: center;
+    min-height: 1.3em; /* Ensure space even when empty */
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.modal-footer {
+    margin-top: 10px; /* Add a bit of space above the footer button */
+}
+
+.modal-footer button { /* General modal button, should match .btn-block */
+    width: 100%;
+    padding: 0 15px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 600; /* Bolder button text */
+    font-size: 1em; /* Larger button text */
+    transition: background-color var(--transition-fast), transform var(--transition-fast);
+    height: calc(var(--button-height) + 4px); /* Slightly taller button */
+    line-height: calc(var(--button-height) + 4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase; /* Optional: makes it look more like a primary action */
+    letter-spacing: 0.5px;
+}
+.modal-footer button:hover {
+    background-color: var(--accent-hover);
+}
+.modal-footer button:active {
+    transform: translateY(1px) scale(0.98); /* More interactive press */
+}
+
+/* Specific styles for Guest Name Modal if needed beyond the generic .modal styling */
+#guest-name-modal .modal-header h2 {
+    font-size: 1.5em; /* Make title more prominent */
+    width: 100%; /* Ensure it takes full width for centering */
+    text-align: center;
+}
+#guest-name-modal .modal-body p {
+    margin-bottom: 25px; /* More space for the instruction */
+}
+
+/* ... (Keep all other styles for video chat, auth pages, etc., from the previous full CSS) ... */

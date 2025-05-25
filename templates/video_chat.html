@@ -3,118 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CloudKeeper Video Conference</title>
+    <title>CloudKeeper Conference</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <style>
-        /* --- General Page & Theme --- */
-        body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e2124; color: #d1d5db; overflow-x: hidden;}
-        #video-chat-main { display: flex; flex-direction: column; min-height: 100vh; }
-        header { background-color: #282c30; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3a3f44; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        header h1 { margin: 0; font-size: 1.6em; color: #61dafb; letter-spacing: 1px;}
-        .auth-info { font-size: 0.9em; color: #9ca3af;}
-        .auth-info a { color: #61dafb; text-decoration: none; }
-        .auth-info a:hover { text-decoration: underline; }
-
-        /* --- Main Controls (Top Bar) --- */
-        .main-controls-container { background-color: #282c30; padding: 15px 20px; display: flex; justify-content: center; align-items: center; gap: 15px; border-bottom: 1px solid #3a3f44;}
-        .main-controls input[type="text"], .main-controls button { padding: 10px 18px; border-radius: 6px; border: 1px solid #4a4e54; font-size: 0.95em; background-color: #3a3f44; color: #d1d5db; transition: background-color 0.2s, border-color 0.2s;}
-        .main-controls input[type="text"]::placeholder { color: #7b838c; }
-        .main-controls input[type="text"]:focus { border-color: #61dafb; background-color: #40454b; outline: none;}
-        .main-controls button { background-color: #007bff; color: white; border-color: #007bff; cursor: pointer; font-weight: 500;}
-        .main-controls button:hover { background-color: #0069d9; border-color: #0062cc;}
-        .main-controls button:disabled { background-color: #4a4e54; color: #7b838c; border-color: #4a4e54; cursor: not-allowed;}
-        .main-controls #leave-room-btn { background-color: #dc3545; border-color: #dc3545;}
-        .main-controls #leave-room-btn:hover { background-color: #c82333; border-color: #bd2130;}
-        .main-controls span { color: #9ca3af; }
-
-        /* --- Room Info & Guest Prompt --- */
-        #room-info-display { background-color: #282c30; padding: 12px 20px; border-radius: 6px; margin: 15px auto; text-align: center; border: 1px solid #3a3f44; max-width: 500px;}
-        #room-info-display p { margin: 5px 0; }
-        #guest-name-prompt { display: none; margin: 15px auto; padding: 15px; background-color: #282c30; border-radius: 8px; text-align:center; border: 1px solid #3a3f44; max-width: 400px;}
-        #guest-name-prompt label { margin-right: 10px; font-weight: 500;}
-        #guest-name-prompt input { padding: 10px; margin-right: 10px; border-radius: 5px; border: 1px solid #4a4e54; background-color: #3a3f44; color: #d1d5db;}
-        #guest-name-prompt button { padding: 10px 20px; background-color: #28a745; color:white; border:none; border-radius:5px; cursor:pointer; font-weight: 500;}
-        #guest-name-prompt button:hover { background-color: #218838;}
-
-        /* --- Video Grid --- */
-        #videos-container { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; padding: 25px; flex-grow: 1; }
-        .video-wrapper {
-            background-color: #282c30; border: 1px solid #3a3f44; border-radius: 8px;
-            display: flex; flex-direction: column; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            position: relative; overflow: hidden; transition: transform 0.3s ease, width 0.3s ease, height 0.3s ease;
-            width: calc(50% - 30px); /* Two per row, accounting for gap */
-            max-width: 640px; /* Max width for larger screens */
-            min-width: 320px; /* Min width for smaller screens */
-            aspect-ratio: 16 / 10; /* Maintain aspect ratio, adjust video height accordingly */
-        }
-        /* Adjust for single video or when maximized */
-        .video-wrapper.maximized, .video-wrapper.single { width: calc(95% - 20px); max-width: 1280px; aspect-ratio: 16 / 9; margin: 10px auto; }
-        .video-wrapper.maximized { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) !important; z-index: 1000; width: 90vw; height:auto; max-height: 90vh; border: 2px solid #61dafb;}
-
-
-        .video-wrapper video { width: 100%; height: 100%; object-fit: contain; background-color: #000; display: block; }
-        .participant-name-tag {
-            color: #e0e0e0; font-size: 0.9em; text-align: center; padding: 6px 10px;
-            background-color: rgba(0,0,0,0.7); width: 100%; box-sizing: border-box;
-            position: absolute; bottom: 0; left:0;
-            border-bottom-left-radius: 7px; border-bottom-right-radius: 7px;
-        }
-        .media-controls-overlay {
-            position: absolute; bottom: 45px; left: 50%; transform: translateX(-50%);
-            background-color: rgba(20, 22, 25, 0.75); backdrop-filter: blur(5px);
-            padding: 8px 12px; border-radius: 25px; display: flex; gap: 10px;
-            opacity: 0; transition: opacity 0.3s ease, bottom 0.3s ease; z-index:10;
-        }
-        .video-wrapper:hover .media-controls-overlay, .video-wrapper.controls-visible .media-controls-overlay { opacity: 1; bottom: 50px; }
-        .media-controls-overlay button {
-            background-color: transparent; color: #d1d5db; border: 1px solid #555c66;
-            border-radius: 50%; width: 40px; height: 40px; font-size: 1.2em;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            transition: background-color 0.2s, color 0.2s, border-color 0.2s;
-        }
-        .media-controls-overlay button:hover { background-color: #4a4e54; border-color: #61dafb;}
-        .media-controls-overlay button.toggled-off { background-color: #dc3545; border-color: #dc3545; color:white;} /* For mic/cam off */
-        .media-controls-overlay button.toggled-on { background-color: #28a745; border-color: #28a745; color:white;} /* For CC/Screen on */
-
-        .maximize-btn-wrapper { position: absolute; top: 10px; right: 10px; z-index: 15;}
-        .maximize-btn {
-            background-color: rgba(20, 22, 25, 0.6); color: #d1d5db; border: 1px solid #555c66;
-            border-radius: 5px; width: 32px; height: 32px; font-size: 1em; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            opacity: 0; transition: opacity 0.3s ease;
-        }
-        .video-wrapper:hover .maximize-btn { opacity: 1; }
-        .video-wrapper.maximized .maximize-btn { content: '➖'; /* Change icon when maximized */ }
-
-
-        /* --- Subtitles & Logs --- */
-        #subtitles-output {
-            width: calc(100% - 40px); max-width: 800px; background-color: rgba(30,33,36,0.8);
-            color: #d1d5db; padding: 12px 15px; border-radius: 6px; margin: 20px auto;
-            min-height: 40px; border: 1px solid #3a3f44; overflow-y: auto; max-height: 150px;
-            font-size: 0.95em; backdrop-filter: blur(3px);
-        }
-        #subtitles-output p { margin: 4px 0; line-height: 1.4;}
-        #messages-log {
-            width: calc(100% - 40px); max-width: 800px; margin: 10px auto 20px auto;
-            font-style: italic; color: #9ca3af; background-color: rgba(30,33,36,0.5);
-            padding:10px 15px; border-radius: 6px; max-height: 100px; overflow-y: auto; font-size: 0.8em;
-        }
-        #messages-log p { margin: 3px 0; }
-
-        /* --- Responsive Adjustments --- */
-        @media (max-width: 768px) {
-            .video-wrapper { width: calc(100% - 20px); /* Single column on smaller screens */ aspect-ratio: 16 / 9; }
-            header h1 { font-size: 1.3em; }
-            .main-controls-container { flex-direction: column; }
-        }
-    </style>
 </head>
 <body>
-    <div id="video-chat-main">
-        <header>
-            <img src="{{ url_for('static', filename='images/cloudkeeper_logo.svg') }}" alt="CloudKeeper Logo" class="logo">
-
+    <div id="video-chat-main-container">
+        <header class="app-header">
+            <div class="logo-title">
+                <h1>CloudKeeper Conference</h1>
+            </div>
             <div class="auth-info">
                 {% if session.username %}
                     Logged in as: <strong id="user-email-display">{{ session.username }}</strong> | <a href="{{ url_for('logout') }}">Logout</a>
@@ -124,50 +24,100 @@
             </div>
         </header>
 
-        <div id="guest-name-prompt">
-            <label for="guest-name-input">Enter your name to join: </label>
-            <input type="text" id="guest-name-input" placeholder="Your Name">
-            <button id="submit-guest-name-btn">Join Call</button>
-        </div>
 
-        <div class="main-controls-container">
-            <div class="main-controls">
-                <button id="create-room-btn">Create & Join New Room</button>
-                <span style="margin: 0 10px;">OR</span>
-                <input type="text" id="room-id-input" placeholder="Enter Room ID to Join">
-                <button id="join-room-btn">Join Existing Room</button>
+        <div class="main-controls-area">
+            <div class="room-actions">
+                <button id="create-room-btn" class="control-button primary-button">
+                    <span class="icon">➕</span> Create New Room
+                </button>
+                <input type="text" id="room-id-input" placeholder="Enter Room ID">
+                <button id="join-room-btn" class="control-button secondary-button">
+                    <span class="icon">🚪</span> Join Room
+                </button>
             </div>
-            <button id="leave-room-btn" style="display:none;">Leave Room</button>
+            <button id="share-room-btn" class="control-button secondary-button" style="display:none;">
+                <span class="icon">📧</span> Share Room
+            </button>
+            <button id="leave-room-btn" class="control-button danger-button" style="display:none;">
+                <span class="icon">👋</span> Leave Room
+            </button>
         </div>
 
         <div id="room-info-display" style="display:none;">
             <p>You are in room: <strong id="display-room-id"></strong></p>
-            <p style="font-size:0.8em;">Share this Room ID with others to join.</p>
+            <p class="share-text">Share this Room ID with others to join.</p>
         </div>
 
-        <div id="videos-container">
-            <div class="video-wrapper" id="local-video-wrapper">
-                <video id="local-video" autoplay muted playsinline></video>
-                <div class="media-controls-overlay">
-                    <button id="toggle-mic-btn" title="Toggle Microphone">🎤</button>
-                    <button id="toggle-camera-btn" title="Toggle Camera">📷</button>
-                    <button id="toggle-cc-btn" title="Toggle Closed Captions">CC</button>
-                    <button id="toggle-screen-btn" title="Share Screen">💻</button>
+        <div id="videos-container-wrapper">
+            <div id="videos-container">
+                <div class="video-wrapper" id="local-video-wrapper">
+                    <video id="local-video" autoplay muted playsinline></video>
+                    <div class="video-overlay-controls">
+                        <div class="media-controls-group">
+                            <button id="toggle-mic-btn" class="media-control-button" title="Toggle Microphone">🎤</button>
+                            <button id="toggle-camera-btn" class="media-control-button" title="Toggle Camera">📷</button>
+                            <button id="toggle-cc-btn" class="media-control-button" title="Toggle Closed Captions">CC</button>
+                            <button id="toggle-screen-btn" class="media-control-button" title="Share Screen">💻</button>
+                        </div>
+                    </div>
+                    <div class="maximize-btn-wrapper">
+                         <button class="maximize-btn" title="Maximize/Restore Local Video" onclick="toggleMaximizeVideo(document.getElementById('local-video-wrapper'), this)">⛶</button>
+                    </div>
+                    <p class="participant-name-tag" id="local-participant-name">You (Local)</p>
                 </div>
-                <div class="maximize-btn-wrapper">
-                </div>
-                <p class="participant-name-tag" id="local-participant-name">You (Local)</p>
             </div>
         </div>
 
-        <div id="subtitles-output"></div>
-        <div id="messages-log"></div>
+        <div id="subtitles-output-container"><div id="subtitles-output"></div></div>
+        <div id="messages-log-container"><div id="messages-log"></div></div>
+    </div>
+
+    <div id="guest-name-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Enter Your Name</h2>
+            </div>
+            <div class="modal-body">
+                <p>Please enter a display name to join the call as a guest.</p>
+                <div class="form-group">
+                    <label for="guest-name-modal-input">Your Name:</label>
+                    <input type="text" id="guest-name-modal-input" placeholder="E.g., Alex" required>
+                </div>
+                <div id="guest-name-status-message" style="margin-top:10px; font-size:0.9em; color:var(--red-accent);"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="submit-guest-name-modal-btn" class="btn-block">Continue to Call</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="share-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Share Room Invitation</h2>
+                <button type="button" class="close-modal-btn" id="close-share-modal-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <p>Enter email to invite to room: <strong id="share-modal-room-id"></strong></p>
+                <div class="form-group">
+                    <label for="share-email-input">Recipient's Email:</label>
+                    <input type="email" id="share-email-input" placeholder="recipient@example.com" required>
+                </div>
+                <div id="share-status-message" style="margin-top:10px; font-size:0.9em;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="send-invitation-btn" class="btn-block">Send Invitation</button>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script>
         const videoSocket = io(window.location.origin + '/video');
         const sessionUsername = "{{ session.username if session.username else '' }}";
+        const appBaseUrl = "{{ request.url_root.rstrip('/') }}";
+        const videoChatPageUrl = "{{ url_for('video_chat_landing_page', _external=False) }}";
     </script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>

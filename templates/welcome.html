@@ -6,11 +6,11 @@
     <title>Welcome to CloudKeeper</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body class="auth-page"> 
     <div class="auth-container">
         <img src="{{ url_for('static', filename='images/cloudkeeper_logo.svg') }}" alt="CloudKeeper Logo" class="logo">
         <h2>Access CloudKeeper</h2>
-        <p class="subtitle">Enter your @cloudkeeper.com email address.</p>
+        <p class="subtitle">Enter your @cloudkeeper.com email address to sign in or create an account.</p>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -23,14 +23,34 @@
         <form method="POST" action="{{ url_for('handle_email') }}">
             <div class="form-group">
                 <label for="email">Email address</label>
-                <input type="email" id="email" name="email" required placeholder="yourname@cloudkeeper.com">
+                <input type="email" id="email" name="email" placeholder="yourname@cloudkeeper.com" required
+                       pattern=".+@cloudkeeper\.com$"
+                       title="Please enter a valid @cloudkeeper.com email address.">
             </div>
-            <button type="submit" class="btn btn-primary btn-block">Sign in / Sign up</button>
+            <button type="submit" class="btn-block">Sign in / Sign up</button>
         </form>
+
         <div class="alternative-action">
-            <a href="{{ url_for('video_chat_landing_page') }}?guest=true" class="btn btn-secondary btn-block">Join a meeting without an account</a>
+            <p>Or</p>
+            <a href="{{ url_for('video_chat_landing_page') }}?guest=true" class="btn-block secondary-action-btn">Join a meeting without an account</a>
+            {# The ?guest=true is optional, main.js handles guest logic if sessionUsername is empty #}
         </div>
-         <p class="footer-text">© 2024 CloudKeeper. All rights reserved.</p>
+
+        <p class="footer-text">© {{ year }} CloudKeeper. All rights reserved.</p>
+        {# You can pass 'year' from Flask or hardcode it #}
     </div>
+
+    <script>
+        // Optional: Add a small script to update the year automatically if not passed from Flask
+        const currentYear = new Date().getFullYear();
+        const footerTexts = document.querySelectorAll('.footer-text');
+        footerTexts.forEach(el => {
+            if (el.textContent.includes('{{ year }}')) { // Check if Flask variable was not rendered
+                 el.textContent = el.textContent.replace('{{ year }}', currentYear);
+            } else if (!el.textContent.match(/\d{4}/)) { // If no year at all
+                 el.textContent = `© ${currentYear} CloudKeeper. All rights reserved.`;
+            }
+        });
+    </script>
 </body>
 </html>
